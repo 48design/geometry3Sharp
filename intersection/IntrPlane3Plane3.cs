@@ -23,11 +23,6 @@ namespace g3
             set { plane1 = value; Result = IntersectionResult.NotComputed; }
         }
 
-        // If true, will return intersection polygons for co-planar triangles.
-        // This is somewhat expensive, default is false.
-        // Note that when false, co-planar intersections will **NOT** be reported as intersections
-        public bool ReportCoplanarIntersection = false;
-
         // result flags
 		public int Quantity = 0;
 		public IntersectionResult Result = IntersectionResult.NotComputed;
@@ -91,6 +86,7 @@ namespace g3
             double invDet = 1 / (1 - dot * dot);
             double c0 = (plane0.Constant - dot * plane1.Constant) * invDet;
             double c1 = (plane1.Constant - dot * plane0.Constant) * invDet;
+            Quantity = 1;
             Type = IntersectionType.Line;
             Line = new Line3d(c0 * plane0.Normal + c1 * plane1.Normal, plane0.Normal.UnitCross(plane1.Normal));
             return true;

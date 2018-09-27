@@ -33,3 +33,7 @@ geometry3Sharp.csproj.user
 bin
 obj
 *.meta
+
+# Rider folders
+.idea
+.jit

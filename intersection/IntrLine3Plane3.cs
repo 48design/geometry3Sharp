@@ -29,6 +29,9 @@ namespace g3
 		public IntersectionType Type = IntersectionType.Empty;
         
         // only valid if intersection type is Point
+        public double LineParameter;
+        
+        // only valid if intersection type is Point
         public Vector3d Point;
         
         // only valid if intersection type is Line
@@ -48,6 +51,9 @@ namespace g3
 
         public bool Find()
         {
+            if (Result != IntersectionResult.NotComputed)
+                return Result != IntersectionResult.NoIntersection;
+            
             double DdN = line.Direction.Dot(plane.Normal);
             double signedDistance = plane.DistanceTo(line.Origin);
             
@@ -55,8 +61,10 @@ namespace g3
             {
                 // The line is not parallel to the plane, so they must intersect.
                 Quantity = 1;
-                Point = Line.PointAt(-signedDistance / DdN);
+                LineParameter = -signedDistance / DdN;
+                Point = Line.PointAt(LineParameter);
                 Type = IntersectionType.Point;
+                Result = IntersectionResult.Intersects;
                 return true;
             }
 
@@ -69,10 +77,12 @@ namespace g3
                 Quantity = 1;
                 Point = Line.PointAt(0);
                 CoincidentLine = new Line3d(line.Origin, line.Direction);
+                Result = IntersectionResult.Intersects;
                 Type = IntersectionType.Line;
                 return true;
             }
 
+            Result = IntersectionResult.NoIntersection;
             Type = IntersectionType.Empty;
             return false;
         }
@@ -100,6 +110,7 @@ namespace g3
                 return true;
             }
 
+            Result = IntersectionResult.NoIntersection;
             Type = IntersectionType.Empty;
             return false;
         }

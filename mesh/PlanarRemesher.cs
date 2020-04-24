@@ -95,18 +95,20 @@ namespace g3.mesh
             if (bIsBoundaryEdge)
                 return ProcessResult.Ignored_EdgeIsFine;
 
-            var allVertices = new List<int>(6);
-            allVertices.AddRange(mesh.GetTriangle(t0).array);
-            allVertices.AddRange(mesh.GetTriangle(t1).array);
+            
+
+            Index2i ov = mesh.GetEdgeOpposingV(edgeID);
+            int c = ov.a, d = ov.b;
+
+
             var removalCandidates = new List<int>() { a, b }.ToArray();
-            var oppositeVs = allVertices.Except(removalCandidates).ToArray();
-            var oppositesVector = mesh.GetVertex(oppositeVs[1]) - mesh.GetVertex(oppositeVs[0]);
+            var oppositesVector = mesh.GetVertex(d) - mesh.GetVertex(c);
             oppositesVector.Normalize();
 
             var keep = new List<int>(2);
             foreach (var removalCandidate in removalCandidates)
             {
-                var candidateVector = mesh.GetVertex(removalCandidate) - mesh.GetVertex(oppositeVs[0]);
+                var candidateVector = mesh.GetVertex(removalCandidate) - mesh.GetVertex(c);
                 var proj = oppositesVector * oppositesVector.Dot(candidateVector);
                 if (!proj.EpsilonEqual(candidateVector, precision))
                     keep.Add(removalCandidate);
@@ -121,7 +123,7 @@ namespace g3.mesh
                 var rem2 = mesh.RemoveTriangle(t1, false, false);
                 if (rem2 != MeshResult.Ok)
                     return ProcessResult.Failed_OpNotSuccessful;
-                var add = mesh.AppendTriangle(oppositeVs[0], oppositeVs[1], keep[0]);
+                var add = mesh.AppendTriangle(c, d, keep[0]);
                 if (add == DMesh3.InvalidID)
                     return ProcessResult.Failed_OpNotSuccessful;
                 return ProcessResult.Ok_Removed;

@@ -37,3 +37,4 @@ bin
 obj
 .vs
 *.meta
+/geometry3Sharp_netstandard.csproj.user

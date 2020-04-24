@@ -145,7 +145,8 @@ namespace g3
             for (int j = 0; j < 3; ++j) {
                 int vid = tv[j];
                 vertices_refcount.decrement(vid);
-                if ( bRemoveIsolatedVertices && vertices_refcount.refCount(vid) == 1) {
+                if ( bRemoveIsolatedVertices && vertices_refcount.refCount(vid) == 1) 
+				{
                     vertices_refcount.decrement(vid);
                     Debug.Assert(vertices_refcount.isValid(vid) == false);
                     vertex_edges.Clear(vid);
@@ -156,9 +157,21 @@ namespace g3
             return MeshResult.Ok;
         }
 
-
-
-
+		public int CleanupUnusedVertices()
+        {
+			int removed = 0;
+            foreach (var vid in VertexIndices())
+            {
+				if (vertices_refcount.refCount(vid) == 1)
+				{
+					vertices_refcount.decrement(vid);
+					Debug.Assert(vertices_refcount.isValid(vid) == false);
+					vertex_edges.Clear(vid);
+					removed++;
+				}
+			}
+			return removed;
+        }
 
 
         public virtual MeshResult SetTriangle(int tID, Index3i newv, bool bRemoveIsolatedVertices = true)

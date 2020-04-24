@@ -162,6 +162,8 @@ namespace g3.mesh
                 return ProcessResult.Ignored_EdgeIsFullyConstrained;
             if (PreventFlip.Contains(edgeID))
                 return ProcessResult.Ignored_EdgeIsFine;
+            if (!constraint.CanFlip)
+                return ProcessResult.Ignored_EdgeIsFine;
 
 
             // look up verts and tris for this edge
@@ -172,6 +174,14 @@ namespace g3.mesh
             if (bIsBoundaryEdge)
                 return ProcessResult.Ignored_EdgeIsFine;
 
+            // avoid to flip edge if the shape done by t1 and t2 is convex
+            //
+            Index2i ov = mesh.GetEdgeOpposingV(edgeID);
+            int c = ov.a, d = ov.b;
+            if (flip_inverts_normals(a, b, c, d, t0))
+                return ProcessResult.Ignored_EdgeIsFine;
+
+
             // only flip if two trinagles share normal
             // mesh.GetTriangle(t0).
             var tri0 = mesh.GetTriangle(t0);
@@ -180,7 +190,7 @@ namespace g3.mesh
                 mesh.GetVertex(tri0.b),
                 mesh.GetVertex(tri0.c)
                 );
-            var tri1 = mesh.GetTriangle(t0);
+            var tri1 = mesh.GetTriangle(t1);
             Vector3d n1 = MathUtil.Normal(
                 mesh.GetVertex(tri1.a),
                 mesh.GetVertex(tri1.b),

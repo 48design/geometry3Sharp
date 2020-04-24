@@ -174,7 +174,8 @@ namespace g3.mesh
             if (bIsBoundaryEdge)
                 return ProcessResult.Ignored_EdgeIsFine;
 
-            // avoid to flip edge if the shape done by t1 and t2 is convex
+            // avoid to flip edge if the shape of t1 and t2 is concave so that 
+            // external the profile of the flip stays the same
             //
             Index2i ov = mesh.GetEdgeOpposingV(edgeID);
             int c = ov.a, d = ov.b;

@@ -24,7 +24,7 @@ namespace g3
         DMesh3 cutTargetMesh;
         DMesh3 cutToolMesh;
 
-        public bool Compute()
+        public bool Compute(boolOperation op = boolOperation.Union)
         {
             // Alternate strategy:
             //   - don't do RemoveContained
@@ -33,23 +33,33 @@ namespace g3
             //   - remove contiguous patches that are inside both/etc (use MWN)
             //   ** no good for coplanar regions...
 
-
-            cutTargetOp = new MeshMeshCut() {
+            cutTargetOp = new MeshMeshCut()
+            {
                 Target = new DMesh3(Target),
                 CutMesh = Tool,
                 VertexSnapTol = VertexSnapTol
             };
             cutTargetOp.Compute();
-            cutTargetOp.RemoveContained();
+            if (op == boolOperation.Union || op == boolOperation.Subtraction)
+                cutTargetOp.RemoveContained();
+            else if (op == boolOperation.Intersection)
+                cutTargetOp.RemoveExternal();
+
+
             cutTargetMesh = cutTargetOp.Target;
 
-            cutToolOp = new MeshMeshCut() {
+            cutToolOp = new MeshMeshCut()
+            {
                 Target = new DMesh3(Tool),
                 CutMesh = Target,
                 VertexSnapTol = VertexSnapTol
             };
             cutToolOp.Compute();
-            cutToolOp.RemoveContained();
+            if (op == boolOperation.Union || op == boolOperation.Intersection)
+                cutToolOp.RemoveContained();
+            else if (op == boolOperation.Subtraction)
+                cutToolOp.RemoveExternal();
+
             cutToolMesh = cutToolOp.Target;
 
             resolve_vtx_pairs();
@@ -60,10 +70,12 @@ namespace g3
             return true;
         }
 
-
-
-
-
+        public enum boolOperation
+        {
+            Union,
+            Subtraction,
+            Intersection
+        }
 
 
         void resolve_vtx_pairs()

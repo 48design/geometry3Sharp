@@ -830,8 +830,6 @@ namespace g3
             return 2.0 * Math.Atan2(top, bottom);
         }
 
-
-
         /// <summary>
         /// compute internal angle at vertex i of triangle (where i is 0,1,2);
         /// TODO can be more efficient here, probably...
@@ -852,8 +850,6 @@ namespace g3
             else
                 return (a-c).Normalized.AngleR((b-c).Normalized);
         }
-
-
 
         public Index2i GetEdgeV(int eID) {
             debug_check_is_edge(eID);
@@ -1110,10 +1106,18 @@ namespace g3
         }
 
 
-
+        /// <summary>
+        /// Appends a triangle to the mesh.
+        /// </summary>
+        /// <returns>Triangle id if successful, <see cref="InvalidID"/> or <see cref="NonManifoldID"/> on failure</returns>
         public int AppendTriangle(int v0, int v1, int v2, int gid = -1) {
             return AppendTriangle(new Index3i(v0, v1, v2), gid);
         }
+
+        /// <summary>
+        /// Appends a triangle to the mesh.
+        /// </summary>
+        /// <returns>Triangle id if successful, <see cref="InvalidID"/> or <see cref="NonManifoldID"/> on failure</returns>
         public int AppendTriangle(Index3i tv, int gid = -1) {
             if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false) {
                 Util.gDevAssert(false);
@@ -1167,10 +1171,6 @@ namespace g3
             } else
                 triangle_edges.insert(add_edge(v0, v1, tid), 3 * tid + j);
         }
-
-
-
-
 
         /// <summary>
         /// Insert triangle at given index, assuming it is unused.

@@ -16,15 +16,12 @@ namespace g3
         /// <summary>
         /// What should we do when AddTriangle() fails because triangle is non-manifold?
         /// </summary>
-        public AddTriangleFailBehaviors NonManifoldTriBehavior = AddTriangleFailBehaviors.DuplicateAllVertices;
+        public AddTriangleFailBehaviors NonManifoldTriBehavior { get; set; } = AddTriangleFailBehaviors.DuplicateAllVertices;
 
         /// <summary>
         /// What should we do when AddTriangle() fails because the triangle already exists?
         /// </summary>
-        public AddTriangleFailBehaviors DuplicateTriBehavior = AddTriangleFailBehaviors.DiscardTriangle;
-
-
-
+        public AddTriangleFailBehaviors DuplicateTriBehavior { get; set; } = AddTriangleFailBehaviors.DiscardTriangle;
 
         public List<DMesh3> Meshes;
         public List<GenericMaterial> Materials;
@@ -76,6 +73,11 @@ namespace g3
                 throw new ArgumentOutOfRangeException("active mesh id is out of range");
         }
 
+        private int AppendTriangle(Index3i t)
+        {
+            return AppendTriangle(t.a, t.b, t.c);
+        }
+
         public int AppendTriangle(int i, int j, int k)
         {
             return AppendTriangle(i, j, k, -1);
@@ -114,8 +116,6 @@ namespace g3
             return Meshes[nActiveMesh].AppendTriangle(new_i, new_j, new_k, g);
         }
 
-
-
         public int AppendVertex(double x, double y, double z)
         {
             return Meshes[nActiveMesh].AppendVertex(new Vector3d(x, y, z));
@@ -148,9 +148,90 @@ namespace g3
             MaterialAssignment[meshID] = materialID;
         }
 
+        /// <summary>
+        /// Similar to the static <see cref="Build()"/> method below, but uses the 
+        /// <see cref="NonManifoldTriBehavior"/> and <see cref="AddTriangleFailBehaviors"/> properties 
+        /// to affect the meshing process and avoids exceptions, preferring feedback in the mesh metadata.
+        /// </summary>
+        public DMesh3 AppendMesh<VType, TType, NType>(IEnumerable<VType> Vertices,
+                                                  IEnumerable<TType> Triangles,
+                                                  IEnumerable<NType> Normals = null,
+                                                  IEnumerable<int> TriGroups = null)
+        {
+            // build outcomes are stored in the metadata to keep the function signature like the static method Build
+            // 
+            int iAppendTriangleIssues = 0;
+            
+            bool addNormals = Normals != null;
+            string NormalsMetadata = "None";
+            
+            bool addTriGroups = TriGroups != null;
+            string TriGroupsMetadata = "None";
 
+            // data preparation
+            Vector3d[] v = BufferUtil.ToVector3d(Vertices);
+            Vector3f[] n = null;
+            if (addNormals)
+            {
+                n = BufferUtil.ToVector3f(Normals);
+                if (n.Length != v.Length)
+                {
+                    NormalsMetadata = "Error: incorrect number of normals provided, ignored.";
+                    addNormals = false;
+                }
+            }
+            Index3i[] t = BufferUtil.ToIndex3i(Triangles);
 
+            List<int> groups = null;
+            if (addTriGroups)
+            {
+                groups = new List<int>(TriGroups);
+                if (groups.Count != t.Length)
+                {
+                    TriGroupsMetadata = "Error: incorrect number of groups provided, ignored.";
+                    addTriGroups = false;
+                }
+            }
 
+            DMesh3 mesh = new DMesh3(addNormals, false, false, addTriGroups);
+            AppendNewMesh(mesh);
+            
+            // vertices
+            for (int i = 0; i < v.Length; ++i)
+                mesh.AppendVertex(v[i]);
+
+            // normals
+            if (addNormals)
+            {
+                for (int i = 0; i < n.Length; ++i)
+                    mesh.SetVertexNormal(i, n[i]);
+                NormalsMetadata = "Ok";
+            }
+
+            // triangles
+            for (int i = 0; i < t.Length; ++i)
+            {
+                var last = AppendTriangle(t[i]); 
+                if (last == DMesh3.InvalidID || last == DMesh3.NonManifoldID)
+                    iAppendTriangleIssues++;
+            }
+
+            // groups
+            if (addTriGroups)
+            {
+                for (int i = 0; i < t.Length; ++i)
+                    mesh.SetTriangleGroup(i, groups[i]);
+                TriGroupsMetadata = "Ok";
+            }
+            
+            // adding the metadata
+            //
+            mesh.AttachMetadata("AppendTriangleIssues", iAppendTriangleIssues);
+            mesh.AttachMetadata("Normals", NormalsMetadata);
+            mesh.AttachMetadata("TriGroups", TriGroupsMetadata);
+
+            return mesh;
+        }
 
         //
         // DMesh3 construction utilities
@@ -159,17 +240,28 @@ namespace g3
         /// <summary>
         /// ultimate generic mesh-builder, pass it arrays of floats/doubles, or lists
         /// of Vector3d, or anything in-between. Will figure out how to interpret
+        /// 
+        /// This static function attempts to retain a manifold mesh, if you need finer 
+        /// control use the concrete class.
+        /// 
+        /// Number of issues encountered adding verices or triangls are stored in the 
+        /// mesh metadata. Metadata can be cleared once the returning object is evaluated.
         /// </summary>
         public static DMesh3 Build<VType,TType,NType>(IEnumerable<VType> Vertices,  
-                                                      IEnumerable<TType> Triangles, 
-                                                      IEnumerable<NType> Normals = null,
-                                                      IEnumerable<int> TriGroups = null)
+                                                    IEnumerable<TType> Triangles, 
+                                                    IEnumerable<NType> Normals = null,
+                                                    IEnumerable<int> TriGroups = null)
         {
             DMesh3 mesh = new DMesh3(Normals != null, false, false, TriGroups != null);
+
+            // build outcomes are stored in the metadata to avoid changes to the function signature
+            // 
+            int iAppendTriangleIssues = 0;
 
             Vector3d[] v = BufferUtil.ToVector3d(Vertices);
             for (int i = 0; i < v.Length; ++i)
                 mesh.AppendVertex(v[i]);
+            
 
             if ( Normals != null ) {
                 Vector3f[] n = BufferUtil.ToVector3f(Normals);
@@ -181,26 +273,23 @@ namespace g3
 
             Index3i[] t = BufferUtil.ToIndex3i(Triangles);
             for (int i = 0; i < t.Length; ++i)
-                mesh.AppendTriangle(t[i]);
+            {
+                var last = mesh.AppendTriangle(t[i]);
+                if (last == DMesh3.InvalidID || last == DMesh3.NonManifoldID)
+                    iAppendTriangleIssues++;
+            }
 
-            if ( TriGroups != null ) {
+            if (TriGroups != null)
+            {
                 List<int> groups = new List<int>(TriGroups);
                 if (groups.Count != t.Length)
                     throw new Exception("DMesh3Builder.Build: incorect number of triangle groups");
                 for (int i = 0; i < t.Length; ++i)
                     mesh.SetTriangleGroup(i, groups[i]);
             }
+            mesh.AttachMetadata("AppendTriangleIssues", iAppendTriangleIssues);
 
             return mesh;
         }
-
-         
-
-
     }
-
-
-
-
-
 }

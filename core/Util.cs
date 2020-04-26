@@ -49,19 +49,20 @@ namespace g3
             return (n & (1 << pos)) != 0;
         }
 
-        public static void EdgeInfoFromVertex(DMesh3 mesh, double x, double y, double z)
+        public static void DebugEdgeInfoFromVertex(DMesh3 mesh, double x, double y, double z)
         {
             var fnd = Util.FindVertexByCoords(mesh, x, y, z);
             foreach (var v in fnd)
             {
+                var vtx = mesh.GetVertex(v);
+                Debug.WriteLine($"V: {v} Pos: {vtx.x}, {vtx.y}, {vtx.z}");
                 var edg = mesh.VtxEdgesItr(v);
                 foreach (var e in edg)
                 {
-                    Debug.WriteLine($"E: {e}");
+                    Debug.WriteLine($"  E: {e}");
                 }
             }
         }
-
 
         // have not tested this extensively, but internet says it is reasonable...
         static public bool IsTextString(byte[] array)
@@ -284,7 +285,6 @@ namespace g3
         {
             List<int> ret = new List<int>();
             Vector3d v = new Vector3d(x, y, z);
-            bool found = false;
             foreach (var index in mesh.VertexIndices())
             {
                 var vtx = mesh.GetVertex(index);
@@ -292,12 +292,8 @@ namespace g3
                 if (d < 0.01)
                 {
                     ret.Add(index);
-                    Debug.WriteLine($"Vertex is {index}: {vtx.x} {vtx.y} {vtx.z}");
-                    found = true;
                 }
             }
-            if (!found)
-                Debug.WriteLine("Not found.");
             return ret;
         }
     }

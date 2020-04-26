@@ -62,57 +62,59 @@ namespace gs
 		}
 
 
-		public bool Apply()
-		{
-			bool do_checks = false;
+        public bool Apply()
+        {
+            bool do_checks = false;
 
-			if ( do_checks ) Mesh.CheckValidity();
+            if (do_checks)
+                Mesh.CheckValidity();
 
 
             /*
              * Remove parts of the mesh we don't want before we bother with anything else
              * TODO: maybe we need to repair orientation first? if we want to use MWN...
              */
-			do_remove_inside();
-                if (Cancelled()) return false;
+            do_remove_inside();
+            if (Cancelled()) return false;
 
             int repeat_count = 0;
-            repeat_all:
+        repeat_all:
 
             /*
              * make sure orientation of connected components is consistent
              * TODO: what about mobius strip problems?
              */
             repair_orientation(false);
-                if (Cancelled()) return false;
+            if (Cancelled()) return false;
 
             /*
              *  Do safe close-cracks to handle easy cases
              */
 
             repair_cracks(true, RepairTolerance);
-                if (Mesh.IsClosed()) goto all_done;
-                if (Cancelled()) return false;
+            if (Mesh.IsClosed())
+                goto all_done;
+            if (Cancelled()) return false;
 
             /*
              * Collapse tiny edges and then try easy cases again, and
              * then allow for handling of ambiguous cases
              */
 
-            collapse_all_degenerate_edges(RepairTolerance*0.5, true);
-                if (Cancelled()) return false;
-            repair_cracks(true, 2*RepairTolerance);
-                if (Cancelled()) return false;
-            repair_cracks(false, 2*RepairTolerance);
-                if (Cancelled()) return false;
-                if (Mesh.IsClosed()) goto all_done;
+            collapse_all_degenerate_edges(RepairTolerance * 0.5, true);
+            if (Cancelled()) return false;
+            repair_cracks(true, 2 * RepairTolerance);
+            if (Cancelled()) return false;
+            repair_cracks(false, 2 * RepairTolerance);
+            if (Cancelled()) return false;
+            if (Mesh.IsClosed()) goto all_done;
 
             /*
              * Possibly we have joined regions with different orientation (is it?), fix that
              * TODO: mobius strips again
              */
             repair_orientation(false);
-                if (Cancelled()) return false;
+            if (Cancelled()) return false;
 
             if (do_checks) Mesh.CheckValidity();
 
@@ -123,45 +125,50 @@ namespace gs
              * Ok, fill simple holes. 
              */
             int nRemainingBowties = 0;
-			int nHoles; bool bSawSpans;
-			fill_trivial_holes(out nHoles, out bSawSpans);
-                if (Cancelled()) return false;
-                if (Mesh.IsClosed()) goto all_done;
+            int nHoles; bool bSawSpans;
+            fill_trivial_holes(out nHoles, out bSawSpans);
+            if (Cancelled()) return false;
+            if (Mesh.IsClosed()) goto all_done;
 
             /*
              * Now fill harder holes. If we saw spans, that means boundary loops could
              * not be resolved in some cases, do we disconnect bowties and try again.
              */
+            
             fill_any_holes(out nHoles, out bSawSpans);
-                if (Cancelled()) return false;
-            if (bSawSpans) {
-				disconnect_bowties(out nRemainingBowties);
-				fill_any_holes(out nHoles, out bSawSpans);
-			}
-                if (Cancelled()) return false;
-                if (Mesh.IsClosed()) goto all_done;
+
+            if (Cancelled()) return false;
+            if (bSawSpans)
+            {
+                disconnect_bowties(out nRemainingBowties);
+                fill_any_holes(out nHoles, out bSawSpans);
+            }
+            if (Cancelled()) return false;
+            if (Mesh.IsClosed()) goto all_done;
 
             /*
              * We may have a closed mesh now but it might still have bowties (eg
              * tetrahedra sharing vtx case). So disconnect those.
              */
             disconnect_bowties(out nRemainingBowties);
-                if (Cancelled()) return false;
+            if (Cancelled()) return false;
 
             /*
              * If the mesh is not closed, we will do one more round to try again.
              */
-            if (repeat_count == 0 && Mesh.IsClosed() == false) {
-				repeat_count++;
-				goto repeat_all;
-			}
+            if (repeat_count == 0 && Mesh.IsClosed() == false)
+            {
+                repeat_count++;
+                goto repeat_all;
+            }
 
             /*
              * Ok, we didn't get anywhere on our first repeat. If we are still not
              * closed, we will try deleting boundary triangles and repeating.
              * Repeat this N times.
              */
-            if ( repeat_count <= ErosionIterations && Mesh.IsClosed() == false) {
+            if (repeat_count <= ErosionIterations && Mesh.IsClosed() == false)
+            {
                 repeat_count++;
                 MeshFaceSelection bdry_faces = new MeshFaceSelection(Mesh);
                 foreach (int eid in MeshIterators.BoundaryEdges(Mesh))
@@ -170,37 +177,38 @@ namespace gs
                 goto repeat_all;
             }
 
-            all_done:
+        all_done:
 
             /*
              * Remove tiny edges
              */
-            if (MinEdgeLengthTol > 0) {
+            if (MinEdgeLengthTol > 0)
+            {
                 collapse_all_degenerate_edges(MinEdgeLengthTol, false);
             }
-                if (Cancelled()) return false;
+            if (Cancelled()) return false;
 
             /*
              * finally do global orientation
              */
             repair_orientation(true);
-                if (Cancelled()) return false;
+            if (Cancelled()) return false;
 
             if (do_checks) Mesh.CheckValidity();
 
             /*
              * Might as well compact output mesh...
              */
-			Mesh = new DMesh3(Mesh, true);
+            Mesh = new DMesh3(Mesh, true);
             MeshNormals.QuickCompute(Mesh);
 
-			return true;
-		}
+            return true;
+        }
 
 
 
 
-		void fill_trivial_holes(out int nRemaining, out bool saw_spans)
+        void fill_trivial_holes(out int nRemaining, out bool saw_spans)
 		{
 			MeshBoundaryLoops loops = new MeshBoundaryLoops(Mesh);
 			nRemaining = 0;

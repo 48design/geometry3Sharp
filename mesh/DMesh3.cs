@@ -500,7 +500,9 @@ namespace g3
             return true;
         }
 
-
+        /// <summary>
+        /// Obsolete, use <see cref="VtxEdgesItr"/> instead.
+        /// </summary>
         [System.Obsolete("GetVtxEdges will be removed in future, use VtxEdgesItr instead")]
         public ReadOnlyCollection<int> GetVtxEdges(int vID) {
             if (vertices_refcount.isValid(vID) == false)

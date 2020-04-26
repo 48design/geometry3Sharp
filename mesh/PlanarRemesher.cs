@@ -95,40 +95,43 @@ namespace g3.mesh
             if (bIsBoundaryEdge)
                 return ProcessResult.Ignored_EdgeIsFine;
 
-            
-
             Index2i ov = mesh.GetEdgeOpposingV(edgeID);
             int c = ov.a, d = ov.b;
+            List<int> keep = EvaluateRemoval(a, b, c, d);
+            if (keep.Count == 2) // need to keep both, ignore
+            {
+                return ProcessResult.Ignored_EdgeIsFine;
+            }
 
+            // we can remove the two involved triangles and replace for a single one
+            var rem1 = mesh.RemoveTriangle(t0, false, false);
+            if (rem1 != MeshResult.Ok)
+                return ProcessResult.Failed_OpNotSuccessful;
+            var rem2 = mesh.RemoveTriangle(t1, false, false);
+            if (rem2 != MeshResult.Ok)
+                return ProcessResult.Failed_OpNotSuccessful;
+            var add = mesh.AppendTriangle(c, d, keep[0]);
+            if (add == DMesh3.InvalidID)
+                return ProcessResult.Failed_OpNotSuccessful;
+            return ProcessResult.Ok_Removed;
+        }
 
-            var removalCandidates = new List<int>() { a, b }.ToArray();
-            var oppositesVector = mesh.GetVertex(d) - mesh.GetVertex(c);
+        private List<int> EvaluateRemoval(int removalCandidateA, int removalCandidateB, int keepVertex1, int keepVertex2)
+        {
+            var removalCandidates = new List<int>() { removalCandidateA, removalCandidateB }.ToArray();
+            var oppositesVector = mesh.GetVertex(keepVertex2) - mesh.GetVertex(keepVertex1);
             oppositesVector.Normalize();
 
             var keep = new List<int>(2);
             foreach (var removalCandidate in removalCandidates)
             {
-                var candidateVector = mesh.GetVertex(removalCandidate) - mesh.GetVertex(c);
+                var candidateVector = mesh.GetVertex(removalCandidate) - mesh.GetVertex(keepVertex1);
                 var proj = oppositesVector * oppositesVector.Dot(candidateVector);
                 if (!proj.EpsilonEqual(candidateVector, precision))
                     keep.Add(removalCandidate);
             }
 
-            if (keep.Count == 1) // only 1 vertex to keep, we can collapse the two triangles to one
-            {
-                // we can remove the two involved triangles and replace for a single one
-                var rem1 = mesh.RemoveTriangle(t0, false, false);
-                if (rem1 != MeshResult.Ok)
-                    return ProcessResult.Failed_OpNotSuccessful;
-                var rem2 = mesh.RemoveTriangle(t1, false, false);
-                if (rem2 != MeshResult.Ok)
-                    return ProcessResult.Failed_OpNotSuccessful;
-                var add = mesh.AppendTriangle(c, d, keep[0]);
-                if (add == DMesh3.InvalidID)
-                    return ProcessResult.Failed_OpNotSuccessful;
-                return ProcessResult.Ok_Removed;
-            }
-            return ProcessResult.Ignored_EdgeIsFine;
+            return keep;
         }
 
         public void EdgeFlipPass()
@@ -185,7 +188,7 @@ namespace g3.mesh
                 return ProcessResult.Ignored_EdgeIsFine;
 
 
-            // only flip if two trinagles share normal
+            // only flip if two triangles share normal
             // mesh.GetTriangle(t0).
             var tri0 = mesh.GetTriangle(t0);
             Vector3d n0 = MathUtil.Normal(
@@ -200,20 +203,66 @@ namespace g3.mesh
                 mesh.GetVertex(tri1.c)
                 );
 
-            if (!n1.EpsilonEqual(n0, precision))
+            // as long as normals are equal or opposite, triangle are coplanar
+            // and we can flip
+            var differDirect = !n1.EpsilonEqual(n0, precision);
+            var differInverted = !n1.EpsilonEqual(n0 * -1, precision);
+            if (differDirect && differInverted)
                 return ProcessResult.Ignored_EdgeIsFine;
 
-            var thisFlips = new List<int>();
-            thisFlips.AddRange(mesh.GetTriEdges(t0).array);
-            thisFlips.AddRange(mesh.GetTriEdges(t1).array);
+            // impacted edges are the ones around the triangles that we are considering to flip
+            // each edge might have another triangle that could be merged after the flip
+            //
+            // we will perform the flip only if this is the case
+            //
+            var doFlip = false;
+            var impactedTris = new int[] { t0, t1 };
 
+            // evaluate if flip is beneficial
+            foreach (var impactedTri in impactedTris)
+            {
+                // four points involved in an edge flip if we are evaluating one of the current triagles
+                // the candidate merging vector would be the vertex not shared (either c or d, but not in impactedTri)
+                var candidateMerging = new List<int>() { c, d }.Except(mesh.GetTriangle(impactedTri).array).FirstOrDefault();
+
+                // the 'other' edges on one the triangles that we are checking to flip
+                var potentialMergedEdges = mesh.GetTriEdges(impactedTri).array.ToList();
+                potentialMergedEdges.Remove(edgeID);
+                foreach (var impactedEdge in potentialMergedEdges)
+                {
+                    var opposingVertices = mesh.GetEdgeOpposingV(impactedEdge).array.ToList();
+                    opposingVertices.RemoveAll(x => x == a || x == b || x == -1);
+                    // Debug.WriteLine(opposingVertices.Count);
+                    foreach (var opposingVertex in opposingVertices)
+                    {
+                        // only the one vertex would be found, the list might be empty if -1 was also removed
+                        // get the edge in question
+                        var evaluatingEdge = mesh.GetEdge(impactedEdge);
+                        var keep = EvaluateRemoval(a, b, candidateMerging, opposingVertex);
+                        if (keep.Count != 2)
+                            doFlip = true;
+                    }
+                    if (doFlip)
+                        break;
+                }
+                if (doFlip)
+                    break;
+            }
+           
+            if (!doFlip)
+                return ProcessResult.Ignored_EdgeIsFine;
 
             DMesh3.EdgeFlipInfo flipInfo;
             MeshResult result = mesh.FlipEdge(edgeID, out flipInfo);
             if (result == MeshResult.Ok)
             {
-                PreventFlip.AddRange(thisFlips);
-                // DoDebugChecks();
+                var impactedEdges = new List<int>(6);
+                impactedEdges.AddRange(mesh.GetTriEdges(t0).array);
+                impactedEdges.AddRange(mesh.GetTriEdges(t1).array);
+                impactedEdges.RemoveAll(x => x == edgeID);
+
+                PreventFlip.AddRange(impactedEdges);
+
                 return ProcessResult.Ok_Flipped;
             }
             return ProcessResult.Failed_OpNotSuccessful;

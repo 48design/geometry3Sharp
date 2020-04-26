@@ -49,6 +49,19 @@ namespace g3
             return (n & (1 << pos)) != 0;
         }
 
+        public static void EdgeInfoFromVertex(DMesh3 mesh, double x, double y, double z)
+        {
+            var fnd = Util.FindVertexByCoords(mesh, x, y, z);
+            foreach (var v in fnd)
+            {
+                var edg = mesh.VtxEdgesItr(v);
+                foreach (var e in edg)
+                {
+                    Debug.WriteLine($"E: {e}");
+                }
+            }
+        }
+
 
         // have not tested this extensively, but internet says it is reasonable...
         static public bool IsTextString(byte[] array)
@@ -267,7 +280,26 @@ namespace g3
             StandardMeshWriter.WriteFile(sPath, meshes, options);
         }
 
-
+        public static List<int> FindVertexByCoords(IMesh mesh, double x, double y, double z)
+        {
+            List<int> ret = new List<int>();
+            Vector3d v = new Vector3d(x, y, z);
+            bool found = false;
+            foreach (var index in mesh.VertexIndices())
+            {
+                var vtx = mesh.GetVertex(index);
+                var d = vtx.Distance(v);
+                if (d < 0.01)
+                {
+                    ret.Add(index);
+                    Debug.WriteLine($"Vertex is {index}: {vtx.x} {vtx.y} {vtx.z}");
+                    found = true;
+                }
+            }
+            if (!found)
+                Debug.WriteLine("Not found.");
+            return ret;
+        }
     }
 
 

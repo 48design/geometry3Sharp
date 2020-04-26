@@ -145,6 +145,7 @@ Several tutorials for using g3Sharp have been posted on the Gradientspace blog:
     - area/area: **IntrTriangle2Triangle2**
 - 3D: 
     - linear/area: **IntrRay3Triangle3**
+      - **IntrLine3Plane3**, **IntrSegment3Plane3** merged from https://github.com/jtveiten/geometry3Sharp
     - linear/volume: **IntrLine3Box3**, **IntrSegment3Box3**, **IntrRay3Box3**, **IntrLine3AxisAlignedBox3**, **IntrRay3AxisAlignedBox3**
     - area/area: **IntrTriangle3Triangle3**
     - ray-sphere and ray-cylinder

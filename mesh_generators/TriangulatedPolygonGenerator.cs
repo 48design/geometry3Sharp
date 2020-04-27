@@ -3,7 +3,7 @@
 namespace g3
 {
     /// <summary>
-    /// Triangulate a 2D polygon-with-holes by inserting it's edges into a meshed rectangle
+    /// Triangulate a 2D polygon-with-holes by inserting its edges into a meshed rectangle
     /// and then removing the triangles outside the polygon.
     /// </summary>
     public class TriangulatedPolygonGenerator : MeshGenerator

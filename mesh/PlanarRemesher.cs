@@ -102,7 +102,7 @@ namespace g3.mesh
             {
                 return ProcessResult.Ignored_EdgeIsFine;
             }
-
+            
             // we can remove the two involved triangles and replace for a single one
             var rem1 = mesh.RemoveTriangle(t0, false, false);
             if (rem1 != MeshResult.Ok)
@@ -110,9 +110,17 @@ namespace g3.mesh
             var rem2 = mesh.RemoveTriangle(t1, false, false);
             if (rem2 != MeshResult.Ok)
                 return ProcessResult.Failed_OpNotSuccessful;
-            var add = mesh.AppendTriangle(c, d, keep[0]);
-            if (add == DMesh3.InvalidID)
-                return ProcessResult.Failed_OpNotSuccessful;
+            // we only add a trinagle if there was one to keep
+            if (keep.Count == 1)
+            {
+                var add = mesh.AppendTriangle(c, d, keep[0]);
+                if (add == DMesh3.InvalidID)
+                    return ProcessResult.Failed_OpNotSuccessful;
+            }
+            else
+            {
+                Debug.WriteLine("Warning: no face added.");
+            }
             return ProcessResult.Ok_Removed;
         }
 

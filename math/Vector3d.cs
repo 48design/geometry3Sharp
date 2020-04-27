@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 #if G3_USING_UNITY
@@ -12,7 +13,16 @@ namespace g3
     {
         public double x;
         public double y;
-        public double z; 
+        public double z;
+
+        public string CommaDelimited 
+        {
+            get
+            {
+                var t = $"{x},{y},{z}";
+                return t.ToString(CultureInfo.InvariantCulture);
+            }
+        }
 
         public Vector3d(double f) { x = y = z = f; }
         public Vector3d(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
@@ -25,8 +35,8 @@ namespace g3
         static public readonly Vector3d AxisX = new Vector3d(1.0f, 0.0f, 0.0f);
         static public readonly Vector3d AxisY = new Vector3d(0.0f, 1.0f, 0.0f);
         static public readonly Vector3d AxisZ = new Vector3d(0.0f, 0.0f, 1.0f);
-		static public readonly Vector3d MaxValue = new Vector3d(double.MaxValue,double.MaxValue,double.MaxValue);
-		static public readonly Vector3d MinValue = new Vector3d(double.MinValue,double.MinValue,double.MinValue);
+        static public readonly Vector3d MaxValue = new Vector3d(double.MaxValue, double.MaxValue, double.MaxValue);
+        static public readonly Vector3d MinValue = new Vector3d(double.MinValue, double.MinValue, double.MinValue);
 
         public double this[int key]
         {
@@ -34,15 +44,18 @@ namespace g3
             set { if (key == 0) x = value; else if (key == 1) y = value; else z = value; }
         }
 
-        public Vector2d xy {
+        public Vector2d xy
+        {
             get { return new Vector2d(x, y); }
             set { x = value.x; y = value.y; }
         }
-        public Vector2d xz {
+        public Vector2d xz
+        {
             get { return new Vector2d(x, z); }
             set { x = value.x; z = value.y; }
         }
-        public Vector2d yz {
+        public Vector2d yz
+        {
             get { return new Vector2d(y, z); }
             set { y = value.x; z = value.y; }
         }
@@ -61,20 +74,25 @@ namespace g3
             get { return Math.Abs(x) + Math.Abs(y) + Math.Abs(z); }
         }
 
-		public double Max {
-			get { return Math.Max(x, Math.Max(y, z)); }
-		}
-		public double Min {
-			get { return Math.Min(x, Math.Min(y, z)); }
-		}
-		public double MaxAbs {
-			get { return Math.Max(Math.Abs(x), Math.Max(Math.Abs(y), Math.Abs(z))); }
-		}
-		public double MinAbs {
-			get { return Math.Min(Math.Abs(x), Math.Min(Math.Abs(y), Math.Abs(z))); }
-		}
+        public double Max
+        {
+            get { return Math.Max(x, Math.Max(y, z)); }
+        }
+        public double Min
+        {
+            get { return Math.Min(x, Math.Min(y, z)); }
+        }
+        public double MaxAbs
+        {
+            get { return Math.Max(Math.Abs(x), Math.Max(Math.Abs(y), Math.Abs(z))); }
+        }
+        public double MinAbs
+        {
+            get { return Math.Min(Math.Abs(x), Math.Min(Math.Abs(y), Math.Abs(z))); }
+        }
 
-        public Vector3d Abs {
+        public Vector3d Abs
+        {
             get { return new Vector3d(Math.Abs(x), Math.Abs(y), Math.Abs(z)); }
         }
 
@@ -88,13 +106,16 @@ namespace g3
         public double Normalize(double epsilon = MathUtil.Epsilon)
         {
             double length = Length;
-            if (length > epsilon) {
+            if (length > epsilon)
+            {
                 double invLength = 1.0 / length;
                 x *= invLength;
                 y *= invLength;
                 z *= invLength;
                 return 1;
-            } else {
+            }
+            else
+            {
                 x = y = z = 0;
                 return 0;
             }
@@ -102,60 +123,72 @@ namespace g3
 
         public Vector3d Normalized
         {
-            get {
+            get
+            {
                 double length = Length;
-                if (length > MathUtil.Epsilon) {
+                if (length > MathUtil.Epsilon)
+                {
                     double invLength = 1.0 / length;
                     return new Vector3d(x * invLength, y * invLength, z * invLength);
-                } else
+                }
+                else
                     return Vector3d.Zero;
             }
         }
 
-		public bool IsNormalized {
-			get { return Math.Abs( (x * x + y * y + z * z) - 1) < MathUtil.ZeroTolerance; }
-		}
+        public bool IsNormalized
+        {
+            get { return Math.Abs((x * x + y * y + z * z) - 1) < MathUtil.ZeroTolerance; }
+        }
 
         public bool IsFinite
         {
             get { double f = x + y + z; return double.IsNaN(f) == false && double.IsInfinity(f) == false; }
         }
 
-        public void Round(int nDecimals) {
+        public void Round(int nDecimals)
+        {
             x = Math.Round(x, nDecimals);
             y = Math.Round(y, nDecimals);
             z = Math.Round(z, nDecimals);
         }
 
 
-        public double Dot(Vector3d v2) {
+        public double Dot(Vector3d v2)
+        {
             return x * v2.x + y * v2.y + z * v2.z;
         }
-        public double Dot(ref Vector3d v2) {
+        public double Dot(ref Vector3d v2)
+        {
             return x * v2.x + y * v2.y + z * v2.z;
         }
 
-        public static double Dot(Vector3d v1, Vector3d v2) {
+        public static double Dot(Vector3d v1, Vector3d v2)
+        {
             return v1.Dot(ref v2);
         }
 
-        public Vector3d Cross(Vector3d v2) {
+        public Vector3d Cross(Vector3d v2)
+        {
             return new Vector3d(
                 y * v2.z - z * v2.y,
                 z * v2.x - x * v2.z,
                 x * v2.y - y * v2.x);
         }
-        public Vector3d Cross(ref Vector3d v2) {
+        public Vector3d Cross(ref Vector3d v2)
+        {
             return new Vector3d(
                 y * v2.z - z * v2.y,
                 z * v2.x - x * v2.z,
                 x * v2.y - y * v2.x);
         }
-        public static Vector3d Cross(Vector3d v1, Vector3d v2) {
+        public static Vector3d Cross(Vector3d v1, Vector3d v2)
+        {
             return v1.Cross(ref v2);
         }
 
-        public Vector3d UnitCross(ref Vector3d v2) {
+        public Vector3d UnitCross(ref Vector3d v2)
+        {
             Vector3d n = new Vector3d(
                 y * v2.z - z * v2.y,
                 z * v2.x - x * v2.z,
@@ -163,7 +196,8 @@ namespace g3
             n.Normalize();
             return n;
         }
-        public Vector3d UnitCross(Vector3d v2) {
+        public Vector3d UnitCross(Vector3d v2)
+        {
             return UnitCross(ref v2);
         }
 
@@ -187,23 +221,27 @@ namespace g3
             return v1.AngleR(v2);
         }
 
-		public double DistanceSquared(Vector3d v2) {
-			double dx = v2.x-x, dy = v2.y-y, dz = v2.z-z;
-			return dx*dx + dy*dy + dz*dz;
-		}
-		public double DistanceSquared(ref Vector3d v2) {
-			double dx = v2.x-x, dy = v2.y-y, dz = v2.z-z;
-			return dx*dx + dy*dy + dz*dz;
-		}
+        public double DistanceSquared(Vector3d v2)
+        {
+            double dx = v2.x - x, dy = v2.y - y, dz = v2.z - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+        public double DistanceSquared(ref Vector3d v2)
+        {
+            double dx = v2.x - x, dy = v2.y - y, dz = v2.z - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
 
-        public double Distance(Vector3d v2) {
-            double dx = v2.x-x, dy = v2.y-y, dz = v2.z-z;
-			return Math.Sqrt(dx*dx + dy*dy + dz*dz);
-		}
-        public double Distance(ref Vector3d v2) {
-            double dx = v2.x-x, dy = v2.y-y, dz = v2.z-z;
-			return Math.Sqrt(dx*dx + dy*dy + dz*dz);
-		}
+        public double Distance(Vector3d v2)
+        {
+            double dx = v2.x - x, dy = v2.y - y, dz = v2.z - z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        public double Distance(ref Vector3d v2)
+        {
+            double dx = v2.x - x, dy = v2.y - y, dz = v2.z - z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
 
         public void Set(Vector3d o)
         {
@@ -292,7 +330,7 @@ namespace g3
         {
             unchecked // Overflow is fine, just wrap
             {
-                int hash = (int) 2166136261;
+                int hash = (int)2166136261;
                 // Suitable nullity checks etc, of course :)
                 hash = (hash * 16777619) ^ x.GetHashCode();
                 hash = (hash * 16777619) ^ y.GetHashCode();
@@ -316,28 +354,33 @@ namespace g3
         }
 
 
-        public bool EpsilonEqual(Vector3d v2, double epsilon) {
-            return Math.Abs(x - v2.x) <= epsilon && 
+        public bool EpsilonEqual(Vector3d v2, double epsilon)
+        {
+            return Math.Abs(x - v2.x) <= epsilon &&
                    Math.Abs(y - v2.y) <= epsilon &&
                    Math.Abs(z - v2.z) <= epsilon;
         }
 
 
-        public static Vector3d Lerp(Vector3d a, Vector3d b, double t) {
+        public static Vector3d Lerp(Vector3d a, Vector3d b, double t)
+        {
             double s = 1 - t;
             return new Vector3d(s * a.x + t * b.x, s * a.y + t * b.y, s * a.z + t * b.z);
         }
-        public static Vector3d Lerp(ref Vector3d a, ref Vector3d b, double t) {
+        public static Vector3d Lerp(ref Vector3d a, ref Vector3d b, double t)
+        {
             double s = 1 - t;
             return new Vector3d(s * a.x + t * b.x, s * a.y + t * b.y, s * a.z + t * b.z);
         }
 
 
 
-        public override string ToString() {
+        public override string ToString()
+        {
             return string.Format("{0:F8} {1:F8} {2:F8}", x, y, z);
         }
-        public string ToString(string fmt) {
+        public string ToString(string fmt)
+        {
             return string.Format("{0} {1} {2}", x.ToString(fmt), y.ToString(fmt), z.ToString(fmt));
         }
 
@@ -419,7 +462,8 @@ namespace g3
         {
             double invLength;
 
-            if (Math.Abs(w.x) >= Math.Abs(w.y)) {
+            if (Math.Abs(w.x) >= Math.Abs(w.y))
+            {
                 // W.x or W.z is the largest magnitude component, swap them
                 invLength = MathUtil.InvSqrt(w.x * w.x + w.z * w.z);
                 u.x = -w.z * invLength;
@@ -428,7 +472,9 @@ namespace g3
                 v.x = w.y * u.z;
                 v.y = w.z * u.x - w.x * u.z;
                 v.z = -w.y * u.x;
-            } else {
+            }
+            else
+            {
                 // W.y or W.z is the largest magnitude component, swap them
                 invLength = MathUtil.InvSqrt(w.y * w.y + w.z * w.z);
                 u.x = 0;
@@ -452,9 +498,11 @@ namespace g3
         /// </summary>
         public static double ComputeOrthogonalComplement(int numInputs, Vector3d v0, ref Vector3d v1, ref Vector3d v2 /*, bool robust = false*/)
         {
-            if (numInputs == 1) {
-                if (Math.Abs(v0[0]) > Math.Abs(v0[1])) {
-                    v1 = new Vector3d( -v0[2], 0.0, +v0[0] );
+            if (numInputs == 1)
+            {
+                if (Math.Abs(v0[0]) > Math.Abs(v0[1]))
+                {
+                    v1 = new Vector3d(-v0[2], 0.0, +v0[0]);
                 }
                 else
                 {
@@ -463,7 +511,8 @@ namespace g3
                 numInputs = 2;
             }
 
-            if (numInputs == 2) {
+            if (numInputs == 2)
+            {
                 v2 = Vector3d.Cross(v0, v1);
                 return Vector3d.Orthonormalize(ref v0, ref v1, ref v2);
                 //return Orthonormalize<3, Real>(3, v, robust);
@@ -480,7 +529,8 @@ namespace g3
         /// </summary>
         public static void MakePerpVectors(ref Vector3d n, out Vector3d b1, out Vector3d b2)
         {
-            if (n.z < 0.0) {
+            if (n.z < 0.0)
+            {
                 double a = 1.0 / (1.0 - n.z);
                 double b = n.x * n.y * a;
                 //b1 = Vec3f(1.0f - n.x * n.x * a, -b, n.x);
@@ -491,7 +541,9 @@ namespace g3
                 b2.x = b;
                 b2.y = n.y * n.y * a - 1.0f;
                 b2.z = -n.y;
-            } else {
+            }
+            else
+            {
                 double a = 1.0 / (1.0 + n.z);
                 double b = -n.x * n.y * a;
                 //b1 = Vec3f(1.0 - n.x * n.x * a, b, -n.x);

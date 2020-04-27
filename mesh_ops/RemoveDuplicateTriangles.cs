@@ -69,7 +69,7 @@ namespace gs
                             if (n.Dot(n2) < 0.99)
                                 continue;
                         }
-
+						
                         MeshResult result =  Mesh.RemoveTriangle(buffer[i], true, false);
                         if (result == MeshResult.Ok)
                             ++Removed;

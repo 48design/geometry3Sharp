@@ -188,8 +188,8 @@ namespace g3.mesh
                 return ProcessResult.Ignored_EdgeIsFine;
 
 
-            // only flip if two triangles share normal
-            // mesh.GetTriangle(t0).
+            // only flip if two triangles are coplanar
+            // 
             var tri0 = mesh.GetTriangle(t0);
             Vector3d n0 = MathUtil.Normal(
                 mesh.GetVertex(tri0.a),

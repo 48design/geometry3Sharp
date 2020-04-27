@@ -64,6 +64,25 @@ namespace g3
             }
         }
 
+        public static void DebugEdgeInfo(DMesh3 mesh, params int[] edgeIds)
+        {
+            foreach (var edgeId in edgeIds)
+            {
+                Debug.Write($"Info on edge {edgeId}... ");
+                if (!mesh.IsEdge(edgeId))
+                {
+                    Debug.WriteLine("Not an edge.");
+                    continue;
+                }
+                var e = mesh.GetEdge(edgeId);
+                Debug.WriteLine($"IsBorder: {mesh.IsBoundaryEdge(edgeId)}");
+                var from = mesh.GetVertex(e.a);
+                var to = mesh.GetVertex(e.b);
+                Debug.WriteLine($"  from: {from.x},{from.y},{from.z} to {to.x},{to.y},{to.z}");
+            }
+        }
+
+
         // have not tested this extensively, but internet says it is reasonable...
         static public bool IsTextString(byte[] array)
         {
@@ -118,6 +137,8 @@ namespace g3
             streamIn.Seek(0, SeekOrigin.Begin); // reset stream
             return is_binary;
         }
+
+        
 
 
         /// <summary>

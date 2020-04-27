@@ -78,6 +78,13 @@ namespace g3
             get { return new Vector3d(Math.Abs(x), Math.Abs(y), Math.Abs(z)); }
         }
 
+        /// <summary>
+        /// Sets the lenght of the vector to 1 or 0.
+        ///
+        /// If the vector's initial length is greater than <see cref="epsilon"/> the resulting length is 1, otherwise 0
+        /// </summary>
+        /// <param name="epsilon">the value against witch the initial length comparison is effected, to determine the normalization behaviour</param>
+        /// <returns>the updated length of the vector after normalization</returns>
         public double Normalize(double epsilon = MathUtil.Epsilon)
         {
             double length = Length;
@@ -86,12 +93,13 @@ namespace g3
                 x *= invLength;
                 y *= invLength;
                 z *= invLength;
+                return 1;
             } else {
-                length = 0;
                 x = y = z = 0;
+                return 0;
             }
-            return length;
         }
+
         public Vector3d Normalized
         {
             get {

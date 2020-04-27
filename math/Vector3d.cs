@@ -99,10 +99,11 @@ namespace g3
         /// <summary>
         /// Sets the lenght of the vector to 1 or 0.
         ///
-        /// If the vector's initial length is greater than <see cref="epsilon"/> the resulting length is 1, otherwise 0
+        /// If the vector's initial length is smaller than <see cref="epsilon"/> the vector is degenerate and 
+        /// the resulting length is 0, otherwise 1
         /// </summary>
-        /// <param name="epsilon">the value against witch the initial length comparison is effected, to determine the normalization behaviour</param>
-        /// <returns>the updated length of the vector after normalization</returns>
+        /// <param name="epsilon">a value to determine the normalization behaviour threshold</param>
+        /// <returns>the original length of the vector, before normalization, if this was smaller than <see cref="epsilon"/> then zero is returned.</returns>
         public double Normalize(double epsilon = MathUtil.Epsilon)
         {
             double length = Length;
@@ -112,7 +113,7 @@ namespace g3
                 x *= invLength;
                 y *= invLength;
                 z *= invLength;
-                return 1;
+                return length;
             }
             else
             {

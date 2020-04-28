@@ -112,6 +112,9 @@ namespace g3
                     sum_w += w;
                 }
                 sum_w = -sum_w;
+				// TODO: Investigate: is this ia bug?
+				// Source https://github.com/ZelimDamian/geometry3Sharp/commit/7a50d8de10faad762e726e60956acc4bdc5456b5
+				// makes the following line M.Set(i, i, sum_w);
                 M.Set(vid, vid, sum_w);
             }
 

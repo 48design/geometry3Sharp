@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -7,9 +8,38 @@ namespace g3
 {
     public class CurveUtils
     {
+        // GetLocalCurveGeometryTangent from cherry-picking 
+        // https://github.com/ZelimDamian/geometry3Sharp/commit/030b28c159604d658c9302e0525833678a10fe87?diff=split
+
+        public static Vector3d GetLocalCurveGeometryTangent(List<Vector3d> vertices, int i, bool bLoop = false)
+        {
+            int length = vertices.Count;
+
+            if (length < 2)
+                return Vector3d.AxisZ;
+
+            if (length == 2)
+                return (vertices[1] - vertices[0]).Normalized;
+
+            if (!bLoop)
+            {
+                if (i == 0)
+                    return (vertices[1] - vertices[0]).Normalized;
+
+                if (i == length - 1)
+                    return (vertices[length - 1] - vertices[length - 2]).Normalized;
+            }
+
+            Vector3d v = vertices[i];
+            Vector3d v1 = vertices[(i - 1 + length) % length];
+            Vector3d v2 = vertices[(i + 1) % length];
+
+            return ((v2 - v).Normalized - (v1 - v).Normalized).Normalized;
+        }
 
         public static Vector3d GetTangent(List<Vector3d> vertices, int i, bool bLoop = false)
         {
+            Debug.WriteLine("Investigate: is GetLocalCurveGeometryTangent() better?");
             if (bLoop) {
                 int NV = vertices.Count;
                 if (i == 0)

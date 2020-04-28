@@ -288,7 +288,8 @@ namespace g3
                 stack.pop_back();
 
                 foreach ( int nbr_vid in Mesh.VtxVerticesItr(vID) ) {
-                    if ( IsSelected(nbr_vid) == true || VertIncludedF(nbr_vid) == false)
+                    // cherry-picked from https://github.com/ZelimDamian/geometry3Sharp/tree/zelim
+                    if (IsSelected(nbr_vid) || VertIncludedF?.Invoke(nbr_vid) == false)
                         continue;
                     add(nbr_vid);
                     stack.push_back(nbr_vid);

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -22,6 +24,14 @@ namespace g3
     /// </summary>
     public class TubeGenerator : MeshGenerator
     {
+        private string Warning = emitWarning();
+
+        private static string emitWarning()
+        {
+            Debug.WriteLine("An improved version exists at: https://github.com/Elevator89/geometry3Sharp/commit/987679ab149547b0eb7d9df062ac4acb11ecc835");
+            return "";
+        }
+
         public List<Vector3d> Vertices;
         public Polygon2d Polygon;
 

@@ -4,7 +4,7 @@ using System.Diagnostics.SymbolStore;
 
 namespace g3
 {
-    // ported from WildMagic5 IntrPlane3Plane3
+    // ported from WildMagic5 IntrPlane3Plane3 by @Bery0za
     // use Test() for fast boolean query, does not compute intersection info
     // use Find() to compute full information
     public class IntrLine3Plane3

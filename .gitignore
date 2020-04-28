@@ -38,3 +38,7 @@ obj
 .vs
 *.meta
 /geometry3Sharp_netstandard.csproj.user
+
+# Rider folders
+.idea
+.jit

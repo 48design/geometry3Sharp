@@ -79,6 +79,7 @@ namespace g3
                 ToIndex[vid] = N;
                 N++;
             }
+            
 
             Px = new double[N];
             Py = new double[N];
@@ -234,8 +235,8 @@ namespace g3
             Action<int> SolveF = (i) => {  ok[i] = solvers[i].Solve(); };
             gParallel.ForEach(indices, SolveF);
 
-            if (ok[0] == false || ok[1] == false || ok[2] == false)
-                return false;
+//            if (ok[0] == false || ok[1] == false || ok[2] == false)
+//                return false;
 
             for ( int i = 0; i < N; ++i ) {
                 int vid = ToMeshV[i];
@@ -280,7 +281,7 @@ namespace g3
             SparseSymmetricCGMultipleRHS Solver = new SparseSymmetricCGMultipleRHS() {
                 B = B, X = X,
                 MultiplyF = CombinedMultiply, PreconditionMultiplyF = null,
-                UseXAsInitialGuess = true
+                UseXAsInitialGuess = true, ConvergeTolerance = MathUtil.ZeroTolerance * 10000
             };
 
             bool ok = Solver.Solve();

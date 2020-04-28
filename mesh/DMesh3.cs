@@ -402,8 +402,13 @@ namespace g3
         // getters
 
 
-        public Vector3d GetVertex(int vID) {
+        public Vector3d GetVertex(int vID)
+        {
             debug_check_is_vertex(vID);
+            return GetVertexUnsafe(vID);
+        }
+
+        public Vector3d GetVertexUnsafe(int vID) {
             int i = 3 * vID;
             return new Vector3d(vertices[i], vertices[i + 1], vertices[i + 2]);
         }
@@ -413,10 +418,14 @@ namespace g3
             return new Vector3f((float)vertices[i], (float)vertices[i + 1], (float)vertices[i + 2]);
         }
 
-        public void SetVertex(int vID, Vector3d vNewPos) {
-            Debug.Assert(vNewPos.IsFinite);     // this will really catch a lot of bugs...
+        public void SetVertex(int vID, Vector3d vNewPos)
+        {
+            Debug.Assert(vNewPos.IsFinite); // this will really catch a lot of bugs...
             debug_check_is_vertex(vID);
+            SetVertexUnsafe(vID, vNewPos);
+        }
 
+        public void SetVertexUnsafe(int vID, Vector3d vNewPos) {
 			int i = 3*vID;
 			vertices[i] = vNewPos.x; vertices[i+1] = vNewPos.y; vertices[i+2] = vNewPos.z;
             updateTimeStamp(true);
@@ -1116,11 +1125,12 @@ namespace g3
             return AppendTriangle(new Index3i(v0, v1, v2), gid);
         }
 
+
         /// <summary>
         /// Appends a triangle to the mesh.
         /// </summary>
         /// <returns>Triangle id if successful, <see cref="InvalidID"/> or <see cref="NonManifoldID"/> on failure</returns>
-        public int AppendTriangle(Index3i tv, int gid = -1) {
+        public int AppendTriangle(Index3i tv, int gid = -1, bool boundaryCheck = true) {
             if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false) {
                 Util.gDevAssert(false);
                 return InvalidID;
@@ -1135,9 +1145,10 @@ namespace g3
             int e0 = find_edge(tv[0], tv[1]);
             int e1 = find_edge(tv[1], tv[2]);
             int e2 = find_edge(tv[2], tv[0]);
-            if ((e0 != InvalidID && IsBoundaryEdge(e0) == false)
-                 || (e1 != InvalidID && IsBoundaryEdge(e1) == false)
-                 || (e2 != InvalidID && IsBoundaryEdge(e2) == false)) {
+            if ( boundaryCheck && (
+                    e0 != InvalidID && IsBoundaryEdge(e0) == false
+                 || e1 != InvalidID && IsBoundaryEdge(e1) == false
+                 || e2 != InvalidID && IsBoundaryEdge(e2) == false)) {
                 return NonManifoldID;
             }
 

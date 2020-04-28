@@ -271,14 +271,14 @@ namespace g3
         /// <summary>
         /// Grow selection outwards from seed vertex, until it hits boundaries defined by vertex filter.
         /// </summary>
-        public void FloodFill(int vSeed, Func<int, bool> VertIncludedF = null)
+        public void FloodFill(int vSeed, Func<int, bool> vertIncludedF = null)
         {
-            FloodFill(new int[] { vSeed }, VertIncludedF);
+            FloodFill(new int[] { vSeed }, vertIncludedF);
         }
         /// <summary>
         /// Grow selection outwards from seed vertex, until it hits boundaries defined by vertex filter.
         /// </summary>
-        public void FloodFill(int[] Seeds, Func<int, bool> VertIncludedF = null)
+        public void FloodFill(int[] Seeds, Func<int, bool> vertIncludedF = null)
         {
             DVector<int> stack = new DVector<int>(Seeds);
             for (int k = 0; k < Seeds.Length; ++k)
@@ -289,7 +289,7 @@ namespace g3
 
                 foreach ( int nbr_vid in Mesh.VtxVerticesItr(vID) ) {
                     // cherry-picked from https://github.com/ZelimDamian/geometry3Sharp/tree/zelim
-                    if (IsSelected(nbr_vid) || VertIncludedF?.Invoke(nbr_vid) == false)
+                    if ( IsSelected(nbr_vid) || vertIncludedF?.Invoke(nbr_vid) == false)
                         continue;
                     add(nbr_vid);
                     stack.push_back(nbr_vid);

@@ -121,8 +121,8 @@ namespace g3
         /// </summary>
         public virtual int FindNearestTriangle(Vector3d p, double fMaxDist = double.MaxValue)
         {
-            if (mesh_timestamp != mesh.ShapeTimestamp)
-                throw new Exception("DMeshAABBTree3.FindNearestTriangle: mesh has been modified since tree construction");
+//            if (mesh_timestamp != mesh.ShapeTimestamp)
+//                throw new Exception("DMeshAABBTree3.FindNearestTriangle: mesh has been modified since tree construction");
 
             double fNearestSqr = (fMaxDist < double.MaxValue) ? fMaxDist * fMaxDist : double.MaxValue;
             int tNearID = DMesh3.InvalidID;
@@ -273,7 +273,8 @@ namespace g3
         public virtual int FindNearestHitTriangle(Ray3d ray, double fMaxDist = double.MaxValue)
         {
             if (mesh_timestamp != mesh.ShapeTimestamp)
-                throw new Exception("DMeshAABBTree3.FindNearestHitTriangle: mesh has been modified since tree construction");
+                Debug.WriteLine("DMeshAABBTree3.FindNearestHitTriangle: mesh has been modified since tree construction");
+//                throw new Exception("DMeshAABBTree3.FindNearestHitTriangle: mesh has been modified since tree construction");
             if (ray.Direction.IsNormalized == false)
                 throw new Exception("DMeshAABBTree3.FindNearestHitTriangle: ray direction is not normalized");
 

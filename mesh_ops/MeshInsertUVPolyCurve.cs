@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace g3
 {
@@ -27,9 +28,11 @@ namespace g3
 
         // This function provides the UV-space coordinates. Default is to return vertex_pos.xy
         public Func<int, Vector2d> PointF;
+	    
+        public Func<int, bool> FilterTriF;
 
         // this function sets UV-space coordinates. Default is to set x=x, y=y, z=0
-        public Action<int, Vector2d> SetPointF;
+        public Action<int, Vector2d, Vector3d> SetPointF;
 
         // the spans & loops take some compute time and can be disabled if you don't need it...
         public bool EnableCutSpansAndLoops = true;
@@ -62,7 +65,7 @@ namespace g3
             IsLoop = isLoop;
 
             PointF = (vid) => { return Mesh.GetVertex(vid).xy; };
-            SetPointF = (vid, pos) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
+            SetPointF = (vid, pos, t) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
         }
 
 
@@ -73,7 +76,7 @@ namespace g3
             IsLoop = true;
 
             PointF = (vid) => { return Mesh.GetVertex(vid).xy; };
-            SetPointF = (vid, pos) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
+            SetPointF = (vid, pos, t) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
         }
 
         public MeshInsertUVPolyCurve(DMesh3 mesh, PolyLine2d path)
@@ -83,7 +86,7 @@ namespace g3
             IsLoop = false;
 
             PointF = (vid) => { return Mesh.GetVertex(vid).xy; };
-            SetPointF = (vid, pos) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
+            SetPointF = (vid, pos, t) => { Mesh.SetVertex(vid, new Vector3d(pos.x, pos.y, 0)); };
         }
 
 
@@ -179,6 +182,13 @@ namespace g3
                     contain_tid = triSpatial.FindContainingTriangle(vInsert, inTriangleF);
                 } else {
                     foreach (int tid in Mesh.TriangleIndices()) {
+                        
+                        // make sure that the triangle satisfies the filter if filter is specified
+                        if (FilterTriF != null && FilterTriF(tid) == false)
+                        {
+                            continue;
+                        }
+                        
                         Index3i tv = Mesh.GetTriangle(tid);
                         // [RMS] using unsigned query here because we do not need to care about tri CW/CCW orientation
                         //   (right? otherwise we have to explicitly invert mesh. Nothing else we do depends on tri orientation)
@@ -264,6 +274,9 @@ namespace g3
                 split_edge = 2;
             else if (bary_coords.z < bary_tol)
                 split_edge = 0;
+            
+            var point3d = Mesh.GetTriBaryPoint(tid, bary_coords.x, bary_coords.y, bary_coords.z);
+            
             if (split_edge >= 0) {
                 int eid = Mesh.GetTriEdge(tid, split_edge);
 
@@ -271,19 +284,13 @@ namespace g3
                 Segment2d seg = new Segment2d(PointF(ev.a), PointF(ev.b));
                 if (seg.DistanceSquared(vInsert) < spatial_tol*spatial_tol) {
                     Index2i et = Mesh.GetEdgeT(eid);
-                    spatial_remove_triangles(et.a, et.b);
-
-                    DMesh3.EdgeSplitInfo split_info;
-                    MeshResult splitResult = Mesh.SplitEdge(eid, out split_info);
-                    if (splitResult != MeshResult.Ok)
-                        throw new Exception("MeshInsertUVPolyCurve.insert_corner_from_bary: edge split failed in case sum==2 - " + splitResult.ToString());
-                    SetPointF(split_info.vNew, vInsert);
-
-                    spatial_add_triangles(et.a, et.b);
-                    spatial_add_triangles(split_info.eNewT2, split_info.eNewT3);
-
-                    return split_info.vNew;
-                }
+                    spatial_remove_triangles(et.a, et.b);DMesh3.EdgeSplitInfo split_info;
+                MeshResult splitResult = Mesh.SplitEdge(eid, out split_info);
+                if (splitResult != MeshResult.Ok)
+                    throw new Exception("MeshInsertUVPolyCurve.insert_corner_from_bary: edge split failed in case sum==2-"+ splitResult.ToString());
+                SetPointF(split_info.vNew, vInsert, point3d);
+spatial_add_triangles(et.a, et.b);
+                    spatial_add_triangles(split_info.eNewT2, split_info.eNewT3);                return split_info.vNew;}
             }
 
             spatial_remove_triangle(tid);
@@ -294,19 +301,13 @@ namespace g3
             if (result != MeshResult.Ok)
                 throw new Exception("MeshInsertUVPolyCurve.insert_corner_from_bary: face poke failed - " + result.ToString());
 
-            SetPointF(pokeinfo.new_vid, vInsert);
+            SetPointF(pokeinfo.new_vid, vInsert, point3d);
 
             spatial_add_triangle(tid);
             spatial_add_triangle(pokeinfo.new_t1);
             spatial_add_triangle(pokeinfo.new_t2);
-
             return pokeinfo.new_vid;
         }
-
-
-
-        
-
 
         public virtual bool Apply()
 		{
@@ -399,6 +400,16 @@ namespace g3
                     // cannot cut boundary edges?
                     if (Mesh.IsBoundaryEdge(eid))
                         continue;
+                    
+                    // check if the edge is from triangles that satisfy filter
+                    if (FilterTriF != null)
+                    {
+                        var edgeT = Mesh.GetEdgeT(eid);
+                        if (!FilterTriF(edgeT.a) && !FilterTriF(edgeT.b))
+                        {
+                            continue;
+                        }
+                    }
 
                     Index2i ev = Mesh.GetEdgeV(eid);
                     int eva_sign = signs[ev.a];
@@ -438,7 +449,7 @@ namespace g3
                     Vector2d va = PointF(ev.a);
                     Vector2d vb = PointF(ev.b);
                     Segment2d edge_seg = new Segment2d(va, vb);
-                    IntrSegment2Segment2 intr = new IntrSegment2Segment2(seg, edge_seg);
+                    IntrSegment2Segment2 intr = new IntrSegment2Segment2(edge_seg, seg);
                     intr.Compute();
                     if (intr.Type == IntersectionType.Segment) {
                         // [RMS] we should have already caught this above, so if it happens here it is probably spurious?
@@ -451,7 +462,10 @@ namespace g3
                         continue; // no intersection
                     }
                     Vector2d x = intr.Point0;
-                    double t = Math.Sqrt(x.DistanceSquared(va) / va.DistanceSquared(vb));
+//                    double t = Math.Sqrt(x.DistanceSquared(va) / va.DistanceSquared(vb));
+                    
+                    // identify the parameter t of the intersection
+                    var t = intr.Parameter0;
 
                     // this case happens if we aren't "on-segment" but after we do the test the intersection pt 
                     // is within epsilon of one end of the edge. This is a spurious t-intersection and we
@@ -473,8 +487,14 @@ namespace g3
                         //return false;
                     }
 
+                    var eva = Mesh.GetVertex(ev.a);
+                    var evb = Mesh.GetVertex(ev.b);
+                    var center = (eva + evb) / 2.0;
+                    var dir = (evb - eva).Normalized;
+                    var evn = center + t * dir;
+
                     // move split point to intersection position
-                    SetPointF(splitInfo.vNew, x);
+                    SetPointF(splitInfo.vNew, x, evn);
                     NewCutVertices.Add(splitInfo.vNew);
 
                     NewEdges.Add(splitInfo.eNewBN);
@@ -597,7 +617,7 @@ namespace g3
 
 
 
-        void find_cut_paths(HashSet<int> CutEdges)
+        public void find_cut_paths(HashSet<int> CutEdges)
         {
             Spans = new List<EdgeSpan>();
             Loops = new List<EdgeLoop>();
@@ -608,6 +628,7 @@ namespace g3
             while ( Remaining.Count > 0 ) {
                 int start_edge = Remaining.First();
                 Remaining.Remove(start_edge);
+                if (!Mesh.IsEdge(start_edge)) continue;
                 Index2i start_edge_v = Mesh.GetEdgeV(start_edge);
 
                 bool isLoop;

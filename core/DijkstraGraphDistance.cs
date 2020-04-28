@@ -27,7 +27,7 @@ namespace g3
         public bool TrackOrder = false;
 
 
-        class GraphNode : DynamicPriorityQueueNode, IEquatable<GraphNode>
+        public class GraphNode : DynamicPriorityQueueNode, IEquatable<GraphNode>
         {
             public int id;
             public GraphNode parent;
@@ -44,7 +44,7 @@ namespace g3
         MemoryPool<GraphNode> SparseNodePool;
 
 
-        struct GraphNodeStruct : IEquatable<GraphNodeStruct>
+        public struct GraphNodeStruct : IEquatable<GraphNodeStruct>
         {
             public int id;
             public int parent;
@@ -282,6 +282,30 @@ namespace g3
                 update_neighbours_dense(g.id);
             }
         }
+        
+        // TODO: ZG - temporarily added this
+        protected void ComputeToExitNode_Dense(int exitNodeId)
+        {
+            while (DenseQueue.Count > 0) {
+                var idxPriority = DenseQueue.FirstPriority;
+                max_value = Math.Max(idxPriority, max_value);
+                var idx = DenseQueue.Dequeue();
+
+                var g = DenseNodes[idx];
+                g.frozen = true;
+                if (TrackOrder)
+                    order.Add(g.id);
+                g.distance = max_value;
+                DenseNodes[idx] = g;
+                update_neighbours_dense(g.id);
+                
+                // found the exit node
+                if (idx == exitNodeId)
+                {
+                    return;
+                }
+            }
+        }
 
 
 
@@ -436,7 +460,10 @@ namespace g3
             return order;
         }
 
-
+        public GraphNodeStruct GetNodeDense(int id)
+        {
+            return DenseNodes.First(n => n.id == id);
+        }
 
         /// <summary>
         /// Walk from node fromv back to the (graph-)nearest seed point.

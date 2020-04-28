@@ -18,7 +18,7 @@ namespace g3
          // N is specified, c = Dot(N,P) where P is a point on the plane.
         public Plane3d(Vector3d normal, Vector3d point)
         {
-            Normal = normal;
+            Normal = normal.Normalized;
             Constant = Normal.Dot(point);
         }
 

@@ -91,7 +91,7 @@ namespace g3.intersection
         public bool Find()
         {
             var line = new Line3d(segment.Center, segment.Direction);
-            IntrLine3Plane3 intr = new IntrLine3Plane3 {Line = line, Plane = plane};
+            IntrLine3Plane3 intr = new IntrLine3Plane3(line, plane);
             if (intr.Find())
             {
                 // The line intersects the plane, but possibly at a point that is

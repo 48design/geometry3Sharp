@@ -2,6 +2,7 @@
 // Distributed under the Boost Software License, Version 1.0. http://www.boost.org/LICENSE_1_0.txt
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,6 +27,17 @@ namespace g3
 
         public bool Compute(boolOperation op = boolOperation.Union)
         {
+            if (!Target.IsClosed())
+            {
+                Debug.WriteLine("Target mesh is not closed;");
+            }
+            if (!Tool.IsClosed())
+            {
+                Debug.WriteLine("Tool mesh is not closed;");
+            }
+
+            Util.gDevAssert(Target.IsClosed() && Tool.IsClosed());
+
             // Alternate strategy:
             //   - don't do RemoveContained
             //   - match embedded vertices, split where possible

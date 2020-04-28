@@ -30,6 +30,7 @@ namespace g3.mesh
             Failed_NotAnEdge
         };
 
+        public bool OptimizeDiagonal { get; set; } = false;
 
         public void Remesh()
         {
@@ -44,6 +45,13 @@ namespace g3.mesh
                 if (removed == 0)
                     break;
             }
+            while (OptimizeDiagonal)
+            {
+                OptimizeFlipDiagonal();
+                if (ModifiedEdgesLastPass == 0)
+                    break;
+            }
+            
             mesh.CleanupUnusedVertices();
         }
 
@@ -140,6 +148,107 @@ namespace g3.mesh
             }
 
             return keep;
+        }
+
+        public void OptimizeFlipDiagonal()
+        {
+            bool done;
+            ModifiedEdgesLastPass = 0;
+            int cur_eid = start_edges();
+            do
+            {
+                if (mesh.IsEdge(cur_eid))
+                {
+                    ProcessResult result = ProcessEdgeDiagonalFlip(cur_eid);
+                    if (result == ProcessResult.Ok_Flipped)
+                        ModifiedEdgesLastPass++;
+                }
+                if (Cancelled())        // expensive to check every iter?
+                    return;
+                cur_eid = next_edge(cur_eid, out done);
+            } while (done == false);
+        }
+
+        private ProcessResult ProcessEdgeDiagonalFlip(int edgeID)
+        {
+            EdgeConstraint constraint =
+                (constraints == null) ? EdgeConstraint.Unconstrained : constraints.GetEdgeConstraint(edgeID);
+            if (constraint.NoModifications)
+                return ProcessResult.Ignored_EdgeIsFullyConstrained;
+            if (PreventFlip.Contains(edgeID))
+                return ProcessResult.Ignored_EdgeIsFine;
+            if (!constraint.CanFlip)
+                return ProcessResult.Ignored_EdgeIsFine;
+
+
+            // look up verts and tris for this edge
+            int a = 0, b = 0, t0 = 0, t1 = 0;
+            if (mesh.GetEdge(edgeID, ref a, ref b, ref t0, ref t1) == false)
+                return ProcessResult.Failed_NotAnEdge;
+            bool bIsBoundaryEdge = (t1 == DMesh3.InvalidID);
+            if (bIsBoundaryEdge)
+                return ProcessResult.Ignored_EdgeIsFine;
+
+            
+            Index2i ov = mesh.GetEdgeOpposingV(edgeID);
+            int c = ov.a, d = ov.b;
+
+            // we are trying to reduce the lenght of the diagonal by flipping
+            // we are ready to compute diagonals here
+            // 
+            var currentDiag = getLen(a, b);
+            var flippedDiag = getLen(c, d);
+            if (currentDiag - flippedDiag < MathUtil.Epsilon)
+                return ProcessResult.Ignored_EdgeIsFine;
+
+            // avoid to flip edge if the shape of t1 and t2 is concave so that 
+            // external the profile of the flip stays the same
+            //
+            if (flip_inverts_normals(a, b, c, d, t0))
+                return ProcessResult.Ignored_EdgeIsFine;
+
+
+            // only flip if two triangles are coplanar
+            // 
+            var tri0 = mesh.GetTriangle(t0);
+            Vector3d n0 = MathUtil.Normal(
+                mesh.GetVertex(tri0.a),
+                mesh.GetVertex(tri0.b),
+                mesh.GetVertex(tri0.c)
+                );
+            var tri1 = mesh.GetTriangle(t1);
+            Vector3d n1 = MathUtil.Normal(
+                mesh.GetVertex(tri1.a),
+                mesh.GetVertex(tri1.b),
+                mesh.GetVertex(tri1.c)
+                );
+
+            // as long as normals are equal or opposite, triangle are coplanar
+            // and we can flip
+            var differDirect = !n1.EpsilonEqual(n0, precision);
+            var differInverted = !n1.EpsilonEqual(n0 * -1, precision);
+            if (differDirect && differInverted)
+                return ProcessResult.Ignored_EdgeIsFine;
+
+            DMesh3.EdgeFlipInfo flipInfo;
+            MeshResult result = mesh.FlipEdge(edgeID, out flipInfo);
+            if (result == MeshResult.Ok)
+            {
+                var impactedEdges = new List<int>(6);
+                impactedEdges.AddRange(mesh.GetTriEdges(t0).array);
+                impactedEdges.AddRange(mesh.GetTriEdges(t1).array);
+                impactedEdges.RemoveAll(x => x == edgeID);
+
+                PreventFlip.AddRange(impactedEdges);
+
+                return ProcessResult.Ok_Flipped;
+            }
+            return ProcessResult.Failed_OpNotSuccessful;
+        }
+
+        private double getLen(int a, int b)
+        {
+            return mesh.GetVertex(a).Distance(mesh.GetVertex(b));
         }
 
         public void EdgeFlipPass()

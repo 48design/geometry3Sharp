@@ -170,6 +170,7 @@ namespace g3
 					removed++;
 				}
 			}
+			updateTimeStamp(true);
 			return removed;
         }
 

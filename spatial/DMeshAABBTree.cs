@@ -664,17 +664,23 @@ namespace g3
         }
         public class IntersectionsQueryResult
         {
+            /// <summary>
+            /// Pairs of triangles intersecting and respective point
+            /// </summary>
             public List<PointIntersection> Points;
+            /// <summary>
+            /// Pairs of triangles intersecting and respective segment
+            /// </summary>
             public List<SegmentIntersection> Segments;
         }
 
-
         /// <summary>
-        /// Compute all intersections between two Meshes. 
-        /// TransformF argument transforms vertices of otherTree to our tree (can be null if in same coord space)
-        /// Returns pairs of intersecting triangles, which could intersect in either point or segment
+        /// Compute intersections between two Meshes. 
         /// Currently *does not* return coplanar intersections.
         /// </summary>
+        /// <param name="otherTree">The tree to intersect with</param>
+        /// <param name="TransformF">transforms vertices of otherTree to our tree (can be null if in same coord space)</param>
+        /// <returns>Pairs of intersecting triangles, which could intersect in either point or segment</returns>
         public virtual IntersectionsQueryResult FindAllIntersections(DMeshAABBTree3 otherTree, Func<Vector3d, Vector3d> TransformF = null)
         {
             if (mesh_timestamp != mesh.ShapeTimestamp)

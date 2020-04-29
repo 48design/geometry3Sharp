@@ -49,6 +49,7 @@ namespace g3
             return (n & (1 << pos)) != 0;
         }
 
+        [Conditional("DEBUG")]
         public static void DebugEdgeInfoFromVertex(DMesh3 mesh, double x, double y, double z)
         {
             var fnd = Util.FindVertexByCoords(mesh, x, y, z);
@@ -64,6 +65,7 @@ namespace g3
             }
         }
 
+        [Conditional("DEBUG")]
         public static void DebugEdgeInfo(DMesh3 mesh, params int[] edgeIds)
         {
             foreach (var edgeId in edgeIds)
@@ -79,6 +81,32 @@ namespace g3
                 var from = mesh.GetVertex(e.a);
                 var to = mesh.GetVertex(e.b);
                 Debug.WriteLine($"  from: {from.x},{from.y},{from.z} to {to.x},{to.y},{to.z}");
+            }
+        }
+
+        /// <summary>
+        /// Can be used in autocad script to visually represent intersections
+        /// </summary>
+        /// <param name="intersections"></param>
+        [Conditional("DEBUG")]
+        internal static void DebugIntersectionsInfo(DMeshAABBTree3.IntersectionsQueryResult intersections, DMesh3 mesh0, DMesh3 mesh1)
+        {
+            // Debug.WriteLine("Points");
+            foreach (var point in intersections.Points)
+            {
+                Debug.WriteLine("Point");
+                Debug.WriteLine(point.point.CommaDelimited);
+            }
+            // Debug.WriteLine("Segments");
+            int i = 0;
+            foreach (var segment in intersections.Segments)
+            {
+                Debug.WriteLine($"-COLOR {(i++ % 7) + 1}");
+                
+                Debug.WriteLine("Line");
+                Debug.WriteLine(segment.point0.CommaDelimited);
+                Debug.WriteLine(segment.point1.CommaDelimited);
+                Debug.WriteLine("");
             }
         }
 
@@ -247,6 +275,8 @@ namespace g3
 
             return result;
         }
+
+        
 
 
 

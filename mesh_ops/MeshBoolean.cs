@@ -106,30 +106,34 @@ namespace g3
         }
 
 
-        void split_missing(MeshMeshCut fromOp, MeshMeshCut toOp, 
+        void split_missing(MeshMeshCut fromOp, MeshMeshCut toOp,
                            DMesh3 fromMesh, DMesh3 toMesh,
                            HashSet<int> fromVerts, HashSet<int> toVerts)
         {
             List<int> missing = new List<int>();
-            foreach (int vid in fromVerts) {
+            foreach (int vid in fromVerts)
+            {
                 Vector3d v = fromMesh.GetVertex(vid);
                 int near_vid = find_nearest_vertex(toMesh, v, toVerts);
-                if (near_vid == DMesh3.InvalidID )
+                if (near_vid == DMesh3.InvalidID)
                     missing.Add(vid);
             }
 
-            foreach (int vid in missing) {
+            foreach (int vid in missing)
+            {
                 Vector3d v = fromMesh.GetVertex(vid);
                 int near_eid = find_nearest_edge(toMesh, v, toVerts);
-                if ( near_eid == DMesh3.InvalidID) {
-                    System.Console.WriteLine("could not find edge to split?");
+                if (near_eid == DMesh3.InvalidID)
+                {
+                    Console.WriteLine($"could not find edge to split: {v.CommaDelimited}");
                     continue;
                 }
 
                 DMesh3.EdgeSplitInfo splitInfo;
                 MeshResult result = toMesh.SplitEdge(near_eid, out splitInfo);
-                if ( result != MeshResult.Ok ) {
-                    System.Console.WriteLine("edge split failed");
+                if (result != MeshResult.Ok)
+                {
+                    Console.WriteLine("edge split failed");
                     continue;
                 }
 
@@ -139,14 +143,15 @@ namespace g3
         }
 
 
-
         int find_nearest_vertex(DMesh3 mesh, Vector3d v, HashSet<int> vertices)
         {
             int near_vid = DMesh3.InvalidID;
             double nearSqr = VertexSnapTol * VertexSnapTol;
-            foreach ( int vid in vertices ) {
+            foreach (int vid in vertices)
+            {
                 double dSqr = mesh.GetVertex(vid).DistanceSquared(ref v);
-                if ( dSqr < nearSqr ) {
+                if (dSqr < nearSqr)
+                {
                     near_vid = vid;
                     nearSqr = dSqr;
                 }
@@ -158,13 +163,15 @@ namespace g3
         {
             int near_eid = DMesh3.InvalidID;
             double nearSqr = VertexSnapTol * VertexSnapTol;
-            foreach ( int eid in mesh.BoundaryEdgeIndices() ) {
+            foreach (int eid in mesh.BoundaryEdgeIndices())
+            {
                 Index2i ev = mesh.GetEdgeV(eid);
                 if (vertices.Contains(ev.a) == false || vertices.Contains(ev.b) == false)
                     continue;
                 Segment3d seg = new Segment3d(mesh.GetVertex(ev.a), mesh.GetVertex(ev.b));
                 double dSqr = seg.DistanceSquared(v);
-                if (dSqr < nearSqr) {
+                if (dSqr < nearSqr)
+                {
                     near_eid = eid;
                     nearSqr = dSqr;
                 }

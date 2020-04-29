@@ -43,7 +43,7 @@ namespace g3
                 Vector3d v = Target.GetVertex(vid);
                 int existing = find_existing_vertex(v);
                 if (existing != -1)
-                    System.Console.WriteLine("VERTEX {0} IS DUPLICATE OF {1}!", vid, existing);
+                    Console.WriteLine("VERTEX {0} IS DUPLICATE OF {1}!", vid, existing);
                 PointHash.InsertPointUnsafe(vid, v);
             }
 
@@ -168,20 +168,30 @@ namespace g3
         }
         IntersectSegment[] Segments;
 
+        /// <summary>
+        /// The centroid of each triangle in the target mesh, by ID
+        /// </summary>
         Vector3d[] BaseFaceCentroids;
+
+        /// <summary>
+        /// The normal of each triangle in the target mesh, by ID
+        /// </summary>
         Vector3d[] BaseFaceNormals;
         Dictionary<int, HashSet<int>> SubFaces;
         Dictionary<int, int> ParentFaces;
 
         HashSet<int> SegmentInsertVertices;
 
+        /// <summary>
+        /// Computes <see cref="BaseFaceCentroids"/> and <see cref="BaseFaceNormals"/>.
+        /// Allocates other sets.
+        /// </summary>
         void initialize()
         {
             BaseFaceCentroids = new Vector3d[Target.MaxTriangleID];
             BaseFaceNormals = new Vector3d[Target.MaxTriangleID];
-            double area = 0;
             foreach (int tid in Target.TriangleIndices())
-                Target.GetTriInfo(tid, out BaseFaceNormals[tid], out area, out BaseFaceCentroids[tid]);
+                Target.GetTriInfo(tid, out BaseFaceNormals[tid], out _, out BaseFaceCentroids[tid]);
 
             // allocate internals
             SegVertices = new List<SegmentVtx>();
@@ -209,6 +219,8 @@ namespace g3
             DMeshAABBTree3 targetSpatial = new DMeshAABBTree3(Target, true);
             DMeshAABBTree3 cutSpatial = new DMeshAABBTree3(CutMesh, true);
             var intersections = targetSpatial.FindAllIntersections(cutSpatial);
+
+            // Util.DebugIntersectionsInfo(intersections, Target, CutMesh);
 
             // for each segment, for each vtx, determine if it is 
             // at an existing vertex, on-edge, or in-face
@@ -349,7 +361,7 @@ namespace g3
                 }
             }
 
-            System.Console.WriteLine("unsorted vertex!");
+            Console.WriteLine("unsorted vertex!");
             sv.elem_id = pokeTris.a;
         }
 

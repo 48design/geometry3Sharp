@@ -331,7 +331,7 @@ namespace g3
 
             StandardMeshWriter.WriteFile(sPath, meshes, options);
         }
-
+        
         public static List<int> FindVertexByCoords(IMesh mesh, double x, double y, double z)
         {
             List<int> ret = new List<int>();

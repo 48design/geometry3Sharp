@@ -2,6 +2,7 @@
 // Distributed under the Boost Software License, Version 1.0. http://www.boost.org/LICENSE_1_0.txt
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -39,7 +40,7 @@ namespace g3
             PointHash = new PointHashGrid3d<int>(cellSize, -1);
 
             // insert target vertices into hash
-            foreach ( int vid in Target.VertexIndices()) {
+            foreach (int vid in Target.VertexIndices()) {
                 Vector3d v = Target.GetVertex(vid);
                 int existing = find_existing_vertex(v);
                 if (existing != -1)
@@ -68,7 +69,7 @@ namespace g3
         {
             Remove(TriangleRemoval.external);
         }
-        
+
 
         public void RemoveContained()
         {
@@ -114,9 +115,9 @@ namespace g3
 
         public void AppendSegments(double r)
         {
-            foreach ( var seg in Segments ) {
+            foreach (var seg in Segments) {
                 Segment3d s = new Segment3d(seg.v0.v, seg.v1.v);
-                if ( Target.FindEdge(seg.v0.vtx_id, seg.v1.vtx_id) == DMesh3.InvalidID )
+                if (Target.FindEdge(seg.v0.vtx_id, seg.v1.vtx_id) == DMesh3.InvalidID)
                     MeshEditor.AppendLine(Target, s, (float)r);
             }
         }
@@ -128,7 +129,7 @@ namespace g3
             foreach (var key in SubFaces.Keys)
                 gidmap[key] = counter++;
             Target.EnableTriangleGroups(0);
-            foreach ( int tid in Target.TriangleIndices() ) {
+            foreach (int tid in Target.TriangleIndices()) {
                 if (ParentFaces.ContainsKey(tid))
                     Target.SetTriangleGroup(tid, gidmap[ParentFaces[tid]]);
                 else if (SubFaces.ContainsKey(tid))
@@ -144,7 +145,23 @@ namespace g3
             public int initial_type = -1;
             public int vtx_id = DMesh3.InvalidID;
             public int elem_id = DMesh3.InvalidID;
+
+            [Conditional("DEBUG")]
+            public void DebugInfo(string varName)
+            {
+                Debug.WriteLine($"  {varName}");
+                Debug.WriteLine($"    v: {v.CommaDelimited}");
+                if (type == 0 && vtx_id == -1)
+                    Debug.WriteLine($"    type: {type}");
+                if (initial_type != type)
+                    Debug.WriteLine($"    initial_type: {initial_type} **");
+                if (vtx_id != -1)
+                    Debug.WriteLine($"    v_id: {vtx_id}");
+                if (elem_id != vtx_id)
+                    Debug.WriteLine($"    elm_id: {elem_id}");
+            }
         }
+
         List<SegmentVtx> SegVertices;
         Dictionary<int, SegmentVtx> VIDToSegVtxMap;
 
@@ -164,6 +181,21 @@ namespace g3
             public SegmentVtx this[int key] {
                 get { return (key == 0) ? v0 : v1; }
                 set { if (key == 0) v0 = value; else v1 = value; }
+            }
+
+            [Conditional("DEBUG")]
+            internal static void DebugInfo(IntersectSegment[] segments)
+            {
+                foreach (var segment in segments)
+                {
+                    Debug.WriteLine("IntersectSegment");
+                    Debug.WriteLine($"  Base T Id: {segment.base_tid}");
+                    segment.v0.DebugInfo("v0");
+                    segment.v1.DebugInfo("v1");
+                    
+
+
+                }
             }
         }
         IntersectSegment[] Segments;
@@ -225,7 +257,7 @@ namespace g3
             // for each segment, for each vtx, determine if it is 
             // at an existing vertex, on-edge, or in-face
             Segments = new IntersectSegment[intersections.Segments.Count];
-            for ( int i = 0; i < Segments.Length; ++i ) {
+            for (int i = 0; i < Segments.Length; ++i) {
                 var isect = intersections.Segments[i];
                 Vector3dTuple2 points = new Vector3dTuple2(isect.point0, isect.point1);
                 IntersectSegment iseg = new IntersectSegment() {
@@ -262,9 +294,9 @@ namespace g3
 
                     // this vtx is tol-on input mesh edge
                     int on_edge_i = on_edge(ref tri, ref v);
-                    if ( on_edge_i >= 0 ) {
+                    if (on_edge_i >= 0) {
                         sv.initial_type = sv.type = 1;
-                        sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i+1)%3]);
+                        sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i + 1) % 3]);
                         Util.gDevAssert(sv.elem_id != DMesh3.InvalidID);
                         add_edge_vtx(sv.elem_id, sv);
                         continue;
@@ -277,7 +309,7 @@ namespace g3
                 }
 
             }
-
+            IntersectSegment.DebugInfo(Segments);
         }
 
 
@@ -289,12 +321,12 @@ namespace g3
         /// </summary>
         void insert_face_vertices()
         {
-            while ( FaceVertices.Count > 0 ) {
+            while (FaceVertices.Count > 0) {
                 var pair = FaceVertices.First();
                 int tid = pair.Key;
                 List<SegmentVtx> triVerts = pair.Value;
-                SegmentVtx v = triVerts[triVerts.Count-1];
-                triVerts.RemoveAt(triVerts.Count-1);
+                SegmentVtx v = triVerts[triVerts.Count - 1];
+                triVerts.RemoveAt(triVerts.Count - 1);
 
                 DMesh3.PokeTriangleInfo pokeInfo;
                 MeshResult result = Target.PokeTriangle(tid, out pokeInfo);
@@ -313,7 +345,7 @@ namespace g3
                 // update remaining verts
                 Index3i pokeEdges = pokeInfo.new_edges;
                 Index3i pokeTris = new Index3i(tid, pokeInfo.new_t1, pokeInfo.new_t2);
-                foreach ( SegmentVtx sv in triVerts ) {
+                foreach (SegmentVtx sv in triVerts) {
                     update_from_poke(sv, pokeEdges, pokeTris);
                     if (sv.type == 1)
                         add_edge_vtx(sv.elem_id, sv);
@@ -344,8 +376,8 @@ namespace g3
                 return;
             }
 
-            for ( int j = 0; j < 3; ++j ) {
-                if ( is_on_edge(pokeEdges[j], sv.v) ) {
+            for (int j = 0; j < 3; ++j) {
+                if (is_on_edge(pokeEdges[j], sv.v)) {
                     sv.type = 1;
                     sv.elem_id = pokeEdges[j];
                     return;
@@ -353,8 +385,8 @@ namespace g3
             }
 
             // [TODO] should use PrimalQuery2d for this!
-            for ( int j = 0; j < 3; ++j ) {
-                if ( is_in_triangle(pokeTris[j], sv.v) ) {
+            for (int j = 0; j < 3; ++j) {
+                if (is_in_triangle(pokeTris[j], sv.v)) {
                     sv.type = 2;
                     sv.elem_id = pokeTris[j];
                     return;
@@ -453,7 +485,7 @@ namespace g3
         void connect_edges()
         {
             int NS = Segments.Length;
-            for ( int si = 0; si < NS; ++si ) {
+            for (int si = 0; si < NS; ++si) {
                 IntersectSegment seg = Segments[si];
                 if (seg.v0 == seg.v1)
                     continue;       // degenerate!
@@ -573,7 +605,7 @@ namespace g3
                 add_subface(subfaces_1, parent_1, origTris.a);
             add_subface(subfaces_1, parent_1, splitInfo.eNewT2);
 
-            if ( origTris.b != DMesh3.InvalidID ) {
+            if (origTris.b != DMesh3.InvalidID) {
                 int parent_2 = get_parent(origTris.b);
                 HashSet<int> subfaces_2 = get_subfaces(parent_2);
                 if (origTris.b != parent_2)
@@ -653,9 +685,9 @@ namespace g3
             int eidx = on_edge(ref tri, ref v);
             if (eidx < 0)
                 return DMesh3.InvalidID;
-            int eid = Target.FindEdge(tv[eidx], tv[(eidx+1)%3]);
+            int eid = Target.FindEdge(tv[eidx], tv[(eidx + 1) % 3]);
             Util.gDevAssert(eid != DMesh3.InvalidID);
-            return eid;            
+            return eid;
         }
         protected bool is_on_edge(int eid, Vector3d v)
         {
@@ -671,7 +703,7 @@ namespace g3
             Vector3d bary = tri.BarycentricCoords(v);
             return (bary.x >= 0 && bary.y >= 0 && bary.z >= 0
                   && bary.x < 1 && bary.y <= 1 && bary.z <= 1);
-                
+
         }
 
 

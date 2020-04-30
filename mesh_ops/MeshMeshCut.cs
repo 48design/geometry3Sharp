@@ -104,9 +104,10 @@ namespace g3
             //
             gParallel.ForEach(Target.TriangleIndices(), (tid) =>
             {
-                if (Target.GetTriArea(tid) == 0)
+                if (Target.GetTriArea(tid) < VertexSnapTol)
                 {
                     removeAnywayT.SafeAdd(tid);
+                    return; // parallel: equivalent to continue.
                 }
                 Vector3d v = Target.GetTriCentroid(tid);
                 if (AttemptPlanarRemoval)
@@ -114,7 +115,7 @@ namespace g3
                     // slightly offset the point to be evaluated.
                     //
                     var nrm = Target.GetTriNormal(tid);
-                    v = v - nrm * 5 * VertexSnapTol;
+                    v -= nrm * 5 * VertexSnapTol;
                 }
 
                 var winding = spatial.WindingNumber(v);
@@ -143,9 +144,7 @@ namespace g3
                 MeshEditor.RemoveTriangles(Target, ext);
             }
 
-            // todo: remove triangles that have no surface, 
-            // then stitch the surface if needed.
-            // MeshEditor.RemoveTriangles(Target, removeAnywayT.Result);
+            MeshEditor.RemoveTriangles(Target, removeAnywayT.Result);
 
             // [RMS] construct set of on-cut vertices? This is not
             // necessarily all boundary vertices...

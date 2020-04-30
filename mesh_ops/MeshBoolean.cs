@@ -17,6 +17,13 @@ namespace g3
         // points within this tolerance are merged
         public double VertexSnapTol = 0.00001;
 
+        /// <summary>
+        /// Sets the respective flag in the <see cref="MeshMeshCut"/> class used.
+        /// 
+        /// This could be triangle-dependent only on coplanar triangles in the two meshes.
+        /// </summary>
+        public bool AttemptPlanarRemoval { get; set; } = true;
+
         public DMesh3 Result;
 
         MeshMeshCut cutTargetOp;
@@ -49,7 +56,8 @@ namespace g3
             {
                 Target = new DMesh3(Target),
                 CutMesh = Tool,
-                VertexSnapTol = VertexSnapTol
+                VertexSnapTol = VertexSnapTol,
+                AttemptPlanarRemoval = AttemptPlanarRemoval
             };
             cutTargetOp.Compute();
             if (op == boolOperation.Union || op == boolOperation.Subtraction)
@@ -64,7 +72,8 @@ namespace g3
             {
                 Target = new DMesh3(Tool),
                 CutMesh = Target,
-                VertexSnapTol = VertexSnapTol
+                VertexSnapTol = VertexSnapTol,
+                AttemptPlanarRemoval = AttemptPlanarRemoval
             };
             cutToolOp.Compute();
             if (op == boolOperation.Union || op == boolOperation.Intersection)

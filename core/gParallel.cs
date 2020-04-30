@@ -20,7 +20,9 @@ namespace g3
         }
         public static void ForEach<T>( IEnumerable<T> source, Action<T> body )
         {
-#if G3_USING_UNITY && (NET_2_0 || NET_2_0_SUBSET)
+#if False && DEBUG // option here do debug without parallelism, removing the false check
+            ForEach_Sequential(source, body);
+#elif G3_USING_UNITY && (NET_2_0 || NET_2_0_SUBSET)
             for_each<T>(source, body);
 #else
             Parallel.ForEach<T>(source, body);

@@ -19,7 +19,7 @@ namespace g3
         {
             get
             {
-                var t = $"{x},{y},{z}";
+                var t = $"{x:f3},{y:f3},{z:f3}";
                 return t.ToString(CultureInfo.InvariantCulture);
             }
         }

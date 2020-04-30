@@ -73,7 +73,7 @@ namespace g3
 
         public void RemoveContained()
         {
-            Remove();
+            Remove(TriangleRemoval.contained);
         }
 
         private enum TriangleRemoval
@@ -82,26 +82,70 @@ namespace g3
             external
         }
 
+        /// <summary>
+        /// Offsets the point evaluated by <see cref="Remove(TriangleRemoval)"/> in order to attempt
+        /// the resolution of coplanar surfaces.
+        /// 
+        /// Relies correct winding of faces to determine direction of offset.
+        /// </summary>
+        public bool AttemptPlanarRemoval { get; set; } = false;
+
         private void Remove(TriangleRemoval rem = TriangleRemoval.contained)
         {
+            // var lastColor = 0;
+
             DMeshAABBTree3 spatial = new DMeshAABBTree3(CutMesh, true);
             spatial.WindingNumber(Vector3d.Zero);
-            SafeListBuilder<int> removeT = new SafeListBuilder<int>();
+            SafeListBuilder<int> containedT = new SafeListBuilder<int>();
+            SafeListBuilder<int> removeAnywayT = new SafeListBuilder<int>();
+
+            // if the windinging number for the centroid point candidate triangles 
+            // is one or more (or close for safety), then it's inside the volume of cutMesh
+            //
             gParallel.ForEach(Target.TriangleIndices(), (tid) =>
             {
+                if (Target.GetTriArea(tid) == 0)
+                {
+                    removeAnywayT.SafeAdd(tid);
+                }
                 Vector3d v = Target.GetTriCentroid(tid);
-                if (spatial.WindingNumber(v) > 0.9)
-                    removeT.SafeAdd(tid);
+                if (AttemptPlanarRemoval)
+                {
+                    // slightly offset the point to be evaluated.
+                    //
+                    var nrm = Target.GetTriNormal(tid);
+                    v = v - nrm * 5 * VertexSnapTol;
+                }
+
+                var winding = spatial.WindingNumber(v);
+                bool IsInternal = winding > 0.9;
+                //temporarily here for debug purposes
+                //var wantColor = IsInternal ? 1 : 2;
+                //if (lastColor != wantColor)
+                //{
+                //    Debug.WriteLine($"-LAYER set L{wantColor}");
+                //    Debug.WriteLine($"");
+                //    lastColor = wantColor;
+                //}
+                //Triangle3d tri = new Triangle3d();
+                //Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
+                //Debug.WriteLine($"3DPOLY {tri.V0.CommaDelimited} {tri.V1.CommaDelimited} {tri.V2.CommaDelimited} {tri.V0.CommaDelimited} {v.CommaDelimited} ");
+                if (IsInternal)
+                    containedT.SafeAdd(tid);
             });
             if (rem == TriangleRemoval.contained)
             {
-                MeshEditor.RemoveTriangles(Target, removeT.Result);
+                MeshEditor.RemoveTriangles(Target, containedT.Result);
             }
             else if (rem == TriangleRemoval.external)
             {
-                var ext = Target.TriangleIndices().Except(removeT.Result);
+                var ext = Target.TriangleIndices().Except(containedT.Result);
                 MeshEditor.RemoveTriangles(Target, ext);
             }
+
+            // todo: remove triangles that have no surface, 
+            // then stitch the surface if needed.
+            // MeshEditor.RemoveTriangles(Target, removeAnywayT.Result);
 
             // [RMS] construct set of on-cut vertices? This is not
             // necessarily all boundary vertices...
@@ -309,7 +353,7 @@ namespace g3
                 }
 
             }
-            IntersectSegment.DebugInfo(Segments);
+            // IntersectSegment.DebugInfo(Segments);
         }
 
 

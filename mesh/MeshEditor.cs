@@ -426,8 +426,6 @@ namespace g3
             }, true);
         }
 
-
-
         /// <summary>
         /// Remove 'fin' triangles that have only one connected triangle.
         /// Removing one fin can create another, by default will keep iterating

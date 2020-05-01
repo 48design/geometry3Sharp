@@ -1,4 +1,5 @@
-﻿// Copyright (c) Ryan Schmidt (rms@gradientspace.com) - All Rights Reserved
+﻿// #define ACAD
+// Copyright (c) Ryan Schmidt (rms@gradientspace.com) - All Rights Reserved
 // Distributed under the Boost Software License, Version 1.0. http://www.boost.org/LICENSE_1_0.txt
 using System;
 using System.Collections.Generic;
@@ -33,7 +34,6 @@ namespace g3
         // TODO: still missing some vertices??
         public List<int> CutVertices;
 
-
         public void Compute()
         {
             double cellSize = Target.CachedBounds.MaxDim / 64;
@@ -49,11 +49,11 @@ namespace g3
             }
 
             initialize();
-            find_segments();
+            find_segments(); // This populates fields: Segments, EdgeVertices and FaceVertices 
             insert_face_vertices();
-            insert_edge_vertices();
+            insert_edge_vertices(); // this inserts the content of EdgeVertices field
             connect_edges();
-
+            
             // SegmentInsertVertices was constructed by planar polygon
             // insertions in MeshInsertUVPolyCurve calls, but we also
             // need to the segment vertices
@@ -90,9 +90,13 @@ namespace g3
         /// </summary>
         public bool AttemptPlanarRemoval { get; set; } = false;
 
+
+
         private void Remove(TriangleRemoval rem = TriangleRemoval.contained)
         {
-            // var lastColor = 0;
+#if ACAD
+            var lastColor = 0;
+#endif
 
             DMeshAABBTree3 spatial = new DMeshAABBTree3(CutMesh, true);
             spatial.WindingNumber(Vector3d.Zero);
@@ -120,17 +124,19 @@ namespace g3
 
                 var winding = spatial.WindingNumber(v);
                 bool IsInternal = winding > 0.9;
-                //temporarily here for debug purposes
-                //var wantColor = IsInternal ? 1 : 2;
-                //if (lastColor != wantColor)
-                //{
-                //    Debug.WriteLine($"-LAYER set L{wantColor}");
-                //    Debug.WriteLine($"");
-                //    lastColor = wantColor;
-                //}
-                //Triangle3d tri = new Triangle3d();
-                //Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
-                //Debug.WriteLine($"3DPOLY {tri.V0.CommaDelimited} {tri.V1.CommaDelimited} {tri.V2.CommaDelimited} {tri.V0.CommaDelimited} {v.CommaDelimited} ");
+#if ACAD
+                // temporarily here for debug purposes
+                var wantColor = IsInternal ? 1 : 2;
+                if (lastColor != wantColor)
+                {
+                    Debug.WriteLine($"-LAYER set L{wantColor}");
+                    Debug.WriteLine($"");
+                    lastColor = wantColor;
+                }
+                Triangle3d tri = new Triangle3d();
+                Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
+                Debug.WriteLine($"3DPOLY {tri.V0.CommaDelimited} {tri.V1.CommaDelimited} {tri.V2.CommaDelimited} {tri.V0.CommaDelimited} {v.CommaDelimited} ");
+#endif
                 if (IsInternal)
                     containedT.SafeAdd(tid);
             });
@@ -209,10 +215,12 @@ namespace g3
         Dictionary<int, SegmentVtx> VIDToSegVtxMap;
 
 
-        // segment vertices in each triangle that we still have to insert
+        /// segment vertices in each triangle that we still have to insert
+        /// the key is the triangle id
         Dictionary<int, List<SegmentVtx>> FaceVertices;
 
-        // segment vertices in each edge that we still have to insert
+        /// segment vertices in each edge that we still have to insert, 
+        /// the key is the edge id
         Dictionary<int, List<SegmentVtx>> EdgeVertices;
 
 
@@ -235,9 +243,6 @@ namespace g3
                     Debug.WriteLine($"  Base T Id: {segment.base_tid}");
                     segment.v0.DebugInfo("v0");
                     segment.v1.DebugInfo("v1");
-                    
-
-
                 }
             }
         }
@@ -283,6 +288,7 @@ namespace g3
         /// <summary>
         /// 1) Find intersection segments
         /// 2) sort onto existing input mesh vtx/edge/face
+        ///    This populates <see cref="Segments"/>, <see cref="EdgeVertices"/> and <see cref="FaceVertices"/>
         /// </summary>
         void find_segments()
         {
@@ -300,19 +306,23 @@ namespace g3
             // for each segment, for each vtx, determine if it is 
             // at an existing vertex, on-edge, or in-face
             Segments = new IntersectSegment[intersections.Segments.Count];
-            for (int i = 0; i < Segments.Length; ++i) {
+            for (int i = 0; i < Segments.Length; ++i)
+            {
                 var isect = intersections.Segments[i];
                 Vector3dTuple2 points = new Vector3dTuple2(isect.point0, isect.point1);
-                IntersectSegment iseg = new IntersectSegment() {
+                IntersectSegment iseg = new IntersectSegment()
+                {
                     base_tid = isect.t0
                 };
                 Segments[i] = iseg;
-                for (int j = 0; j < 2; ++j) {
+                for (int j = 0; j < 2; ++j)
+                {
                     Vector3d v = points[j];
 
                     // if this exact vtx coord has been seen, use same vtx
                     SegmentVtx sv;
-                    if (SegVtxMap.TryGetValue(v, out sv)) {
+                    if (SegVtxMap.TryGetValue(v, out sv))
+                    {
                         iseg[j] = sv;
                         continue;
                     }
@@ -322,8 +332,9 @@ namespace g3
                     iseg[j] = sv;
 
                     // this vtx is tol-equal to input mesh vtx
-                    int existing_v = find_existing_vertex(isect.point0);
-                    if (existing_v >= 0) {
+                    int existing_v = find_existing_vertex(v);
+                    if (existing_v >= 0)
+                    {
                         sv.initial_type = sv.type = 0;
                         sv.elem_id = existing_v;
                         sv.vtx_id = existing_v;
@@ -337,7 +348,8 @@ namespace g3
 
                     // this vtx is tol-on input mesh edge
                     int on_edge_i = on_edge(ref tri, ref v);
-                    if (on_edge_i >= 0) {
+                    if (on_edge_i >= 0)
+                    {
                         sv.initial_type = sv.type = 1;
                         sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i + 1) % 3]);
                         Util.gDevAssert(sv.elem_id != DMesh3.InvalidID);
@@ -350,13 +362,82 @@ namespace g3
                     sv.elem_id = isect.t0;
                     add_face_vtx(sv.elem_id, sv);
                 }
-
             }
-            // IntersectSegment.DebugInfo(Segments);
+            //if (false)
+            //{
+            //    DebugPoint(new Vector3d(-.5, +.5, 0.5), intersections);
+            //}
+            //else
+            //{
+            //    // DebugPoint(new Vector3d(0, -.5, 0.5), intersections);
+            //    // IntersectSegment.DebugInfo(Segments);
+            //    DebugInfo("Triangle", FaceVertices);
+            //    DebugInfo("Edge", EdgeVertices);
+            //}
         }
 
+        [Conditional("DEBUG")]
+        private void DebugPoint(Vector3d vector3d, DMeshAABBTree3.IntersectionsQueryResult intersections)
+        {
+            Debug.WriteLine($"=====  Search {vector3d.CommaDelimited}");
+            int i = -1;
+            foreach (var seg in intersections.Segments)
+            {
+                i++;
+                if (
+                    seg.point0.DistanceSquared(vector3d) > 0
+                    &&
+                    seg.point1.DistanceSquared(vector3d) > 0
+                    )
+                    continue;
+                // found one
+                Debug.WriteLine($"In intersection segments [{i}] {vector3d.CommaDelimited}");
+                var hitPoint = (seg.point0.DistanceSquared(vector3d) > 0) ? "point1" : "point0"; // one of the two must be
+                Debug.WriteLine($"  hit: {hitPoint}");
+                Debug.WriteLine($"  tris: tri0={seg.t0}, tri1={seg.t1}");
+                Debug.WriteLine($"  seg: {seg.point0.CommaDelimited} to {seg.point1.CommaDelimited}");
+                Debug.WriteLine($"  delta: {(seg.point0 - seg.point1).CommaDelimited}");
+            }
+            i = -1;
+            foreach (var seg in intersections.Points)
+            {
+                i++;
+                if (
+                    seg.point.DistanceSquared(vector3d) > 0
+                    )
+                    continue;
+                // found one
+                Debug.WriteLine($"In intersection points [{i}] {vector3d.CommaDelimited}");
+                Debug.WriteLine($"  tri: tri0 {seg.t0}, tri1: {seg.t1}  ");
+            }
+            DebugInfo("Triangle", FaceVertices, vector3d);
+            DebugInfo("Edge", EdgeVertices, vector3d);
+            Debug.WriteLine($"=====  End Search {vector3d.CommaDelimited}");
+        }
 
+        [Conditional("DEBUG")]
+        private void DebugInfo(string type, Dictionary<int, List<SegmentVtx>> vtcs, Vector3d? query = null)
+        {
+            // Debug.WriteLine(type + "s");
+            var i = -1;
+            foreach (var pair in vtcs)
+            {
+                i++;
+                if (query.HasValue)
+                {
+                    if (!pair.Value.Any(x => x.v.DistanceSquared(query.Value) == 0))
+                        continue; // skip if not found
+                }
 
+                Debug.WriteLine($"{type}s[{i}]");
+                
+                Debug.WriteLine($"  {type} id: {pair.Key}");
+                foreach (var segV in pair.Value)
+                {
+                    Debug.WriteLine($"  {segV.v}");
+                }
+            }
+        }
 
         /// <summary>
         /// For each on-face vtx, we poke the face, and re-sort 
@@ -454,8 +535,8 @@ namespace g3
                 int eid = pair.Key;
                 List<SegmentVtx> edgeVerts = pair.Value;
                 SegmentVtx v = edgeVerts[edgeVerts.Count - 1];
-                edgeVerts.RemoveAt(edgeVerts.Count - 1);
 
+                edgeVerts.RemoveAt(edgeVerts.Count - 1);
                 Index2i splitTris = Target.GetEdgeT(eid);
 
                 DMesh3.EdgeSplitInfo splitInfo;

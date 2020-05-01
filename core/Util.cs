@@ -303,8 +303,8 @@ namespace g3
         }
 
 
-
-        public static void WriteDebugMesh(IMesh mesh, string sPath)
+        [Conditional("DEBUG")]
+        public static void WriteDebugMesh(IMesh mesh, string sPath = @"..\..\test_output\debug.obj")
         {
             WriteOptions options = WriteOptions.Defaults;
             options.bWriteGroups = true;
@@ -314,7 +314,8 @@ namespace g3
             StandardMeshWriter.WriteFile(sPath, new List<WriteMesh>() { new WriteMesh(mesh) }, options);
         }
 
-        public static void WriteDebugMeshAndMarkers(IMesh mesh, List<Vector3d> Markers, string sPath)
+        [Conditional("DEBUG")]
+        public static void WriteDebugMeshAndMarkers(IMesh mesh, List<Vector3d> Markers, string sPath = @"..\..\test_output\debug.obj")
         {
             WriteOptions options = WriteOptions.Defaults;
             options.bWriteGroups = true;

@@ -302,10 +302,21 @@ namespace g3
             Marshal.FreeHGlobal(i);
         }
 
+        const string defaultOutputFolder = @"../../test_output/";
+        const string defaultOutputFileName = @"default.obj";
 
         [Conditional("DEBUG")]
-        public static void WriteDebugMesh(IMesh mesh, string sPath = @"..\..\test_output\debug.obj")
+        public static void WriteDebugMesh(IMesh mesh, string sPath = "", string extraid = "")
         {
+            if (string.IsNullOrWhiteSpace(sPath))
+            {
+                sPath = Path.Combine(defaultOutputFolder, defaultOutputFileName);
+            }
+            if (!string.IsNullOrWhiteSpace(extraid))
+            {
+                sPath = Path.ChangeExtension(sPath, $".{extraid}.obj");
+            }
+            
             WriteOptions options = WriteOptions.Defaults;
             options.bWriteGroups = true;
             options.bPerVertexColors = true;
@@ -314,9 +325,15 @@ namespace g3
             StandardMeshWriter.WriteFile(sPath, new List<WriteMesh>() { new WriteMesh(mesh) }, options);
         }
 
+        
+
         [Conditional("DEBUG")]
-        public static void WriteDebugMeshAndMarkers(IMesh mesh, List<Vector3d> Markers, string sPath = @"..\..\test_output\debug.obj")
+        public static void WriteDebugMeshAndMarkers(IMesh mesh, List<Vector3d> Markers, string sPath = @"")
         {
+            if (string.IsNullOrWhiteSpace(sPath))
+            {
+                sPath = Path.Combine(defaultOutputFolder, defaultOutputFileName);
+            }
             WriteOptions options = WriteOptions.Defaults;
             options.bWriteGroups = true;
             List<WriteMesh> meshes = new List<WriteMesh>() { new WriteMesh(mesh) };

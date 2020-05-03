@@ -233,9 +233,21 @@ namespace g3
             return mesh;
         }
 
-        //
-        // DMesh3 construction utilities
-        //
+        /// <summary>
+        /// Convenience call for <see cref="Build{VType, TType, NType}(IEnumerable{VType}, IEnumerable{TType}, IEnumerable{NType}, IEnumerable{int})"/>.
+        /// 
+        /// ultimate generic mesh-builder, pass it arrays of floats/doubles, or lists
+        /// of Vector3d, or anything in-between. Will figure out how to interpret
+        /// 
+        /// This static function attempts to retain a manifold mesh, if you need finer 
+        /// control use the concrete class.
+        /// 
+        /// Number of issues encountered adding verices or triangls are stored in the 
+        /// mesh metadata. Metadata can be cleared once the returning object is evaluated.
+        public static DMesh3 Build<VType, TType>(IEnumerable<VType> Vertices, IEnumerable<TType> Triangles)
+        {
+            return Build<VType, TType, Vector3f>(Vertices, Triangles, null);
+        }
 
         /// <summary>
         /// ultimate generic mesh-builder, pass it arrays of floats/doubles, or lists

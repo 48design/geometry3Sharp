@@ -65,8 +65,11 @@ namespace g3
             else if (op == boolOperation.Intersection)
                 cutTargetOp.RemoveExternal();
 
+            
+
 
             cutTargetMesh = cutTargetOp.Target;
+            Util.WriteDebugMesh(cutTargetMesh, "", "1");
 
             cutToolOp = new MeshMeshCut()
             {
@@ -82,6 +85,7 @@ namespace g3
                 cutToolOp.RemoveExternal();
 
             cutToolMesh = cutToolOp.Target;
+            Util.WriteDebugMesh(cutTargetMesh, "", "2");
 
             resolve_vtx_pairs();
 
@@ -134,7 +138,7 @@ namespace g3
                 int near_eid = find_nearest_edge(toMesh, v, toVerts);
                 if (near_eid == DMesh3.InvalidID)
                 {
-                    Console.WriteLine($"could not find edge to split: {v.CommaDelimited}");
+                    Console.WriteLine($"could not find edge to split near: {v.CommaDelimited}");
                     continue;
                 }
 

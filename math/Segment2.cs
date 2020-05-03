@@ -233,7 +233,7 @@ namespace g3
                 // Compute the location of segment1 endpoints relative to segment0.
                 diff = seg2.Center - Center;
                 double t1 = Direction.Dot(diff);
-                double tmin = t1 - seg2.Extent;
+                double tmin = t1 - seg2.Extent; 
                 double tmax = t1 + seg2.Extent;
                 Interval1d extents = new Interval1d(-Extent, Extent);
                 if (extents.Overlaps(new Interval1d(tmin, tmax)))

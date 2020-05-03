@@ -67,19 +67,35 @@ namespace g3
         /// </summary>
         public void RemoveExternal()
         {
-            Remove(TriangleRemoval.external);
+            Remove(TriangleRemoval.External);
         }
 
 
         public void RemoveContained()
         {
-            Remove(TriangleRemoval.contained);
+            Remove(TriangleRemoval.Internal);
         }
+
+
+        //    +---------------------------------+
+        //    | #Target                         |
+        //    |                                 |  <--- External
+        //    |                                 |
+        //    |         +--------------------------------------+
+        //    |         |                       |              |
+        //    |         |        Internal --->  |              |              
+        //    |         |                       |        #Tool |
+        //    +---------+=======================+--------------+
+        //                         ^
+        //                         |
+        //                         +--------------------- Shared
+
 
         private enum TriangleRemoval
         {
-            contained,
-            external
+            Internal,
+            Shared,
+            External
         }
 
         /// <summary>
@@ -92,7 +108,7 @@ namespace g3
 
 
 
-        private void Remove(TriangleRemoval rem = TriangleRemoval.contained)
+        private void Remove(TriangleRemoval rem = TriangleRemoval.Internal)
         {
 #if ACAD
             var lastColor = 0;
@@ -102,6 +118,10 @@ namespace g3
             spatial.WindingNumber(Vector3d.Zero);
             SafeListBuilder<int> containedT = new SafeListBuilder<int>();
             SafeListBuilder<int> removeAnywayT = new SafeListBuilder<int>();
+
+            var nrmOffset = -5;
+            if (rem == TriangleRemoval.External)
+                nrmOffset *= -1;
 
             // if the windinging number for the centroid point candidate triangles 
             // is one or more (or close for safety), then it's inside the volume of cutMesh
@@ -119,7 +139,7 @@ namespace g3
                     // slightly offset the point to be evaluated.
                     //
                     var nrm = Target.GetTriNormal(tid);
-                    v -= nrm * 5 * VertexSnapTol;
+                    v = nrm * nrmOffset * VertexSnapTol;
                 }
 
                 var winding = spatial.WindingNumber(v);
@@ -140,11 +160,11 @@ namespace g3
                 if (IsInternal)
                     containedT.SafeAdd(tid);
             });
-            if (rem == TriangleRemoval.contained)
+            if (rem == TriangleRemoval.Internal)
             {
                 MeshEditor.RemoveTriangles(Target, containedT.Result);
             }
-            else if (rem == TriangleRemoval.external)
+            else if (rem == TriangleRemoval.External)
             {
                 var ext = Target.TriangleIndices().Except(containedT.Result);
                 MeshEditor.RemoveTriangles(Target, ext);

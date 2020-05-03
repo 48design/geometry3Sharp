@@ -119,10 +119,10 @@ namespace g3
 
         private SafeListBuilder<int> InvalidT = new SafeListBuilder<int>();
 
-        public void Remove(IntersectionSets rem = IntersectionSets.Internal)
+        public IEnumerable<int> Remove(IntersectionSets rem)
         {
-            var containedT = GetIntersectionSet(rem);
-            MeshEditor.RemoveTriangles(Target, containedT);
+            var removingTs = GetIntersectionSet(rem);
+            MeshEditor.RemoveTriangles(Target, removingTs);
             MeshEditor.RemoveTriangles(Target, InvalidT.Result);
 
             // [RMS] construct set of on-cut vertices? This is not
@@ -133,9 +133,10 @@ namespace g3
                 if (Target.IsVertex(vid))
                     CutVertices.Add(vid);
             }
+            return removingTs;
         }
 
-        private IEnumerable<int> GetIntersectionSet(IntersectionSets set)
+        public IEnumerable<int> GetIntersectionSet(IntersectionSets set)
         {
             switch (set)
             {
@@ -206,7 +207,7 @@ namespace g3
                 if (isNotSelected  && includeShared)
                 {
                     var vEvaluatingOut = vCentroid - nrm * nrmOffset;
-                    winding = cutSpatial.WindingNumber(vEvaluatingTrianglePoint);
+                    winding = cutSpatial.WindingNumber(vEvaluatingOut);
                     isNotSelected = winding > 0.9;
                 }
 

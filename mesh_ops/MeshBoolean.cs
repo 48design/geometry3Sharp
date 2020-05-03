@@ -52,6 +52,8 @@ namespace g3
             //   - remove contiguous patches that are inside both/etc (use MWN)
             //   ** no good for coplanar regions...
 
+            bool reverseNormal = false;
+
             cutTargetOp = new MeshMeshCut()
             {
                 Target = new DMesh3(Target),
@@ -60,17 +62,20 @@ namespace g3
                 AttemptPlanarRemoval = AttemptPlanarRemoval
             };
             cutTargetOp.Compute();
-            if (op == boolOperation.Union || op == boolOperation.Subtraction)
-                cutTargetOp.RemoveContained();
+            if (op == boolOperation.Union)
+                cutTargetOp.Remove(MeshMeshCut.IntersectionSets.Internal);
+            else if (op == boolOperation.Subtraction)
+                cutTargetOp.Remove(MeshMeshCut.IntersectionSets.InternalPlusShared); // ok
             else if (op == boolOperation.Intersection)
-                cutTargetOp.RemoveExternal();
-
-            
-
-
+                cutTargetOp.Remove(MeshMeshCut.IntersectionSets.External);
+            if (reverseNormal)
+                Reverse(cutTargetOp.Target);
             cutTargetMesh = cutTargetOp.Target;
-            Util.WriteDebugMesh(cutTargetMesh, "", "1");
-
+            //
+            // Operation on first MeshMesCut ends here
+            // Util.WriteDebugMesh(cutTargetMesh, "", "1");
+            
+            reverseNormal = false;
             cutToolOp = new MeshMeshCut()
             {
                 Target = new DMesh3(Tool),
@@ -79,13 +84,22 @@ namespace g3
                 AttemptPlanarRemoval = AttemptPlanarRemoval
             };
             cutToolOp.Compute();
-            if (op == boolOperation.Union || op == boolOperation.Intersection)
-                cutToolOp.RemoveContained();
+            if (op == boolOperation.Union)
+                cutToolOp.Remove(MeshMeshCut.IntersectionSets.InternalPlusShared);
+            else if (op == boolOperation.Intersection)
+                cutToolOp.Remove(MeshMeshCut.IntersectionSets.ExternalPlusShared);
             else if (op == boolOperation.Subtraction)
-                cutToolOp.RemoveExternal();
-
+            {
+                cutToolOp.Remove(MeshMeshCut.IntersectionSets.ExternalPlusShared);
+                reverseNormal = true;
+            }
+            if (reverseNormal)
+                Reverse(cutToolOp.Target);
             cutToolMesh = cutToolOp.Target;
-            Util.WriteDebugMesh(cutTargetMesh, "", "2");
+            //
+            // Operation on second MeshMesCut ends here
+            // Util.WriteDebugMesh(cutTargetMesh, "", "2");
+
 
             resolve_vtx_pairs();
 
@@ -93,6 +107,13 @@ namespace g3
             MeshEditor.Append(Result, cutTargetMesh);
 
             return true;
+        }
+
+        private void Reverse(DMesh3 target)
+        {
+            // reverse all the mesh normals
+            MeshEditor m = new MeshEditor(target);
+            m.ReverseTriangles(target.TriangleIndices());
         }
 
         public enum boolOperation

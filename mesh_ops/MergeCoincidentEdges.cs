@@ -69,11 +69,14 @@ namespace gs
 			Vector3d a = Vector3d.Zero, b = Vector3d.Zero;
 			Vector3d c = Vector3d.Zero, d = Vector3d.Zero;
 
-			// find edge equivalence sets. First we find all other edges with same
-			// midpoint, and then we check if endpoints are the same in second loop
-			//
-			// the result is stored in the EquivSets variable.
 
+			// JUMP DOWN FOR ACTUAL MERGING                        ----------------------------------+
+			//                                                                                       |
+			// find edge equivalence sets. First we find all other edges with same                   |
+			// midpoint, and then we check if endpoints are the same in second loop                  |
+			//                                                                                       |
+			// the result is stored in the EquivSets variable.                                      \ /
+			//                                                                                       V
 			// 'remaining' contains the ids of the edges with equivalence candidates, 
 			// the others have null values in the EquivSets array.
 			// 
@@ -111,8 +114,9 @@ namespace gs
 				}
 			}
 
-			// [TODO] could replace remaining hashset w/ PQ, and use conservative count?
 
+			// [TODO] could replace remaining hashset w/ PQ, and use conservative count?
+			// 
 			// add potential duplicate edges to priority queue, sorted by
 			// number of possible matches. 
 			// [TODO] Does this need to be a PQ? Not updating PQ below anyway...
@@ -132,6 +136,11 @@ namespace gs
 
 				Q.Enqueue(new DuplicateEdge() { eid = i }, EquivSets[i].Count);
 			}
+
+			//																						 +      /// MERGE CODE IS HERE
+			//																						 |
+			//																						 |
+			// MERGE CODE																	<--------+
 
 			int failed = 0;
 			while (Q.Count > 0)

@@ -67,83 +67,129 @@ namespace g3
         /// </summary>
         public void RemoveExternal()
         {
-            Remove(TriangleRemoval.External);
+            Remove(IntersectionSets.ExternalPlusShared);
         }
 
 
         public void RemoveContained()
         {
-            Remove(TriangleRemoval.Internal);
+            Remove(IntersectionSets.Internal);
         }
 
 
-        //    +---------------------------------+
-        //    | #Target                         |
-        //    |                                 |  <--- External
+        //    +---------------------------------+    #Target
         //    |                                 |
-        //    |         +--------------------------------------+
+        //    |                                 |
+        //    |                  External --->  |  
+        //    |                                 |
+        //    |         +--------------------------------------+     #CutMesh
         //    |         |                       |              |
         //    |         |        Internal --->  |              |              
-        //    |         |                       |        #Tool |
+        //    |         |                       |              |
         //    +---------+=======================+--------------+
-        //                         ^
-        //                         |
-        //                         +--------------------- Shared
+        //         ^               ^
+        //         |               |
+        //         |               +----Shared
+        //         |
+        //         +----------------- External
 
 
-        private enum TriangleRemoval
+
+        [Flags]
+        public enum IntersectionSets
         {
-            Internal,
-            Shared,
-            External
+            None = 0,
+            Internal = 1,
+            Shared = 2, 
+            InternalPlusShared = Internal | Shared, // 3
+            External = 4, 
+            InternalPlusExternal = Internal | External, // 5
+            ExternalPlusShared = Shared | External, // 6
+            All = Internal | External | Shared // 7
         }
 
         /// <summary>
-        /// Offsets the point evaluated by <see cref="Remove(TriangleRemoval)"/> in order to attempt
+        /// Offsets the point evaluated by <see cref="Remove(IntersectionSets)"/> in order to attempt
         /// the resolution of coplanar surfaces.
         /// 
         /// Relies correct winding of faces to determine direction of offset.
         /// </summary>
-        public bool AttemptPlanarRemoval { get; set; } = false;
+        public bool AttemptPlanarRemoval { get; set; } = true;
 
 
+        private SafeListBuilder<int> InvalidT = new SafeListBuilder<int>();
 
-        private void Remove(TriangleRemoval rem = TriangleRemoval.Internal)
+        public void Remove(IntersectionSets rem = IntersectionSets.Internal)
         {
+            var containedT = GetIntersectionSet(rem);
+            MeshEditor.RemoveTriangles(Target, containedT);
+            MeshEditor.RemoveTriangles(Target, InvalidT.Result);
+
+            // [RMS] construct set of on-cut vertices? This is not
+            // necessarily all boundary vertices...
+            CutVertices = new List<int>();
+            foreach (int vid in SegmentInsertVertices)
+            {
+                if (Target.IsVertex(vid))
+                    CutVertices.Add(vid);
+            }
+        }
+
+        private IEnumerable<int> GetIntersectionSet(IntersectionSets set)
+        {
+            switch (set)
+            {
+                case IntersectionSets.None:
+                    return Enumerable.Empty<int>();
+                case IntersectionSets.Internal:
+                    return GetIntersectionExternals(true, true);
+                case IntersectionSets.Shared:
+                    break;
+                case IntersectionSets.InternalPlusShared:
+                    return GetIntersectionExternals(false, true);
+                case IntersectionSets.External:
+                    return GetIntersectionExternals(false, false);
+                case IntersectionSets.InternalPlusExternal:
+                    break;
+                case IntersectionSets.ExternalPlusShared:
+                    return GetIntersectionExternals(true, false);
+                case IntersectionSets.All:
+                    return Target.TriangleIndices().Except(InvalidT.Result.ToArray());
+                default:
+                    break;
+            }
+            throw new NotImplementedException();
+        }
+
+        private List<int> GetIntersectionExternals(bool includeShared, bool invertSelection)
+        {
+            // externals are triangles that are neither internal not shared
 #if ACAD
             var lastColor = 0;
 #endif
+            cutSpatial.WindingNumber(Vector3d.Zero);
+            var nrmOffset = -5 * VertexSnapTol;
 
-            DMeshAABBTree3 spatial = new DMeshAABBTree3(CutMesh, true);
-            spatial.WindingNumber(Vector3d.Zero);
-            SafeListBuilder<int> containedT = new SafeListBuilder<int>();
-            SafeListBuilder<int> removeAnywayT = new SafeListBuilder<int>();
-
-            var nrmOffset = -5;
-            if (rem == TriangleRemoval.External)
-                nrmOffset *= -1;
-
+            SafeListBuilder<int> returnValues = new SafeListBuilder<int>();
             // if the windinging number for the centroid point candidate triangles 
             // is one or more (or close for safety), then it's inside the volume of cutMesh
             //
-            gParallel.ForEach(Target.TriangleIndices(), (tid) =>
+            gParallel.ForEach(Target.TriangleIndices().Except(InvalidT.Result.ToArray()), (tid) =>
             {
                 if (Target.GetTriArea(tid) < VertexSnapTol)
                 {
-                    removeAnywayT.SafeAdd(tid);
+                    InvalidT.SafeAdd(tid);
                     return; // parallel: equivalent to continue.
                 }
-                Vector3d v = Target.GetTriCentroid(tid);
-                if (AttemptPlanarRemoval)
-                {
-                    // slightly offset the point to be evaluated.
-                    //
-                    var nrm = Target.GetTriNormal(tid);
-                    v = nrm * nrmOffset * VertexSnapTol;
-                }
+                Vector3d vCentroid = Target.GetTriCentroid(tid);
+                Vector3d vEvaluatingTrianglePoint = vCentroid;
+                Vector3d nrm = Target.GetTriNormal(tid);
+                if (AttemptPlanarRemoval) // slightly offset the point to be evaluated.
+                    vEvaluatingTrianglePoint += nrm * nrmOffset;
+                
 
-                var winding = spatial.WindingNumber(v);
-                bool IsInternal = winding > 0.9;
+                var winding = cutSpatial.WindingNumber(vEvaluatingTrianglePoint);
+                bool isNotSelected = winding > 0.9;
 #if ACAD
                 // temporarily here for debug purposes
                 var wantColor = IsInternal ? 1 : 2;
@@ -157,29 +203,17 @@ namespace g3
                 Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
                 Debug.WriteLine($"3DPOLY {tri.V0.CommaDelimited} {tri.V1.CommaDelimited} {tri.V2.CommaDelimited} {tri.V0.CommaDelimited} {v.CommaDelimited} ");
 #endif
-                if (IsInternal)
-                    containedT.SafeAdd(tid);
+                if (isNotSelected  && includeShared)
+                {
+                    var vEvaluatingOut = vCentroid - nrm * nrmOffset;
+                    winding = cutSpatial.WindingNumber(vEvaluatingTrianglePoint);
+                    isNotSelected = winding > 0.9;
+                }
+
+                if (isNotSelected == invertSelection)
+                    returnValues.SafeAdd(tid);
             });
-            if (rem == TriangleRemoval.Internal)
-            {
-                MeshEditor.RemoveTriangles(Target, containedT.Result);
-            }
-            else if (rem == TriangleRemoval.External)
-            {
-                var ext = Target.TriangleIndices().Except(containedT.Result);
-                MeshEditor.RemoveTriangles(Target, ext);
-            }
-
-            MeshEditor.RemoveTriangles(Target, removeAnywayT.Result);
-
-            // [RMS] construct set of on-cut vertices? This is not
-            // necessarily all boundary vertices...
-            CutVertices = new List<int>();
-            foreach (int vid in SegmentInsertVertices)
-            {
-                if (Target.IsVertex(vid))
-                    CutVertices.Add(vid);
-            }
+            return returnValues.Result;
         }
 
         public void AppendSegments(double r)
@@ -304,6 +338,30 @@ namespace g3
         }
 
 
+        DMeshAABBTree3 _targetSpatial;
+        DMeshAABBTree3 targetSpatial
+        { 
+            get
+            {
+                if (_targetSpatial == null)
+                {
+                    _targetSpatial = new DMeshAABBTree3(Target, true);
+                }
+                return _targetSpatial;
+            } 
+        }
+        DMeshAABBTree3 _cutSpatial;
+        DMeshAABBTree3 cutSpatial
+        {
+            get
+            {
+                if (_cutSpatial == null)
+                {
+                    _cutSpatial = new DMeshAABBTree3(CutMesh, true);
+                }
+                return _cutSpatial;
+            }
+        }
 
         /// <summary>
         /// 1) Find intersection segments
@@ -317,8 +375,6 @@ namespace g3
             // find intersection segments
             // TODO: intersection polygons
             // TODO: do we need to care about intersection vertices?
-            DMeshAABBTree3 targetSpatial = new DMeshAABBTree3(Target, true);
-            DMeshAABBTree3 cutSpatial = new DMeshAABBTree3(CutMesh, true);
             var intersections = targetSpatial.FindAllIntersections(cutSpatial);
 
             // Util.DebugIntersectionsInfo(intersections, Target, CutMesh);

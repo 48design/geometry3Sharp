@@ -152,8 +152,6 @@ namespace g3
             List<int> missing = new List<int>();
             foreach (int vid in fromVerts)
             {
-                
-
                 Vector3d v = fromMesh.GetVertex(vid);
                 int near_vid = findNearestVertexWithinSnapTolerance(toMesh, v, toVerts);
                 if (near_vid == DMesh3.InvalidID)
@@ -191,10 +189,10 @@ namespace g3
         int findNearestVertexWithinSnapTolerance(DMesh3 mesh, Vector3d v, HashSet<int> vertices)
         {
             int near_vid = DMesh3.InvalidID;
-            double nearSqr = VertexSnapTol * VertexSnapTol;
+            double nearSqr = VertexSnapTol;
             foreach (int vid in vertices)
             {
-                double dSqr = mesh.GetVertex(vid).DistanceSquared(ref v);
+                double dSqr = mesh.GetVertex(vid).Distance(ref v);
                 if (dSqr < nearSqr)
                 {
                     near_vid = vid;
@@ -207,14 +205,14 @@ namespace g3
         int find_nearest_edge(DMesh3 mesh, Vector3d v, HashSet<int> vertices)
         {
             int near_eid = DMesh3.InvalidID;
-            double nearSqr = VertexSnapTol * VertexSnapTol;
+            double nearSqr = VertexSnapTol;
             foreach (int eid in mesh.BoundaryEdgeIndices())
             {
                 Index2i ev = mesh.GetEdgeV(eid);
                 if (vertices.Contains(ev.a) == false || vertices.Contains(ev.b) == false)
                     continue;
                 Segment3d seg = new Segment3d(mesh.GetVertex(ev.a), mesh.GetVertex(ev.b));
-                double dSqr = seg.DistanceSquared(v);
+                double dSqr = seg.Distance(v);
                 if (dSqr < nearSqr)
                 {
                     near_eid = eid;

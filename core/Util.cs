@@ -16,8 +16,8 @@ namespace g3
     {
 
 		static public void gBreakToDebugger() {
-			if ( System.Diagnostics.Debugger.IsAttached)
-				System.Diagnostics.Debugger.Break();
+			if (Debugger.IsAttached)
+                Debugger.Break();
 		}
 
         static public bool DebugBreakOnDevAssert = true;
@@ -26,7 +26,7 @@ namespace g3
         static public void gDevAssert(bool bValue, string message = "gDevAssert") {
             if (bValue == false) {
                 if (DebugBreakOnDevAssert)
-                    System.Diagnostics.Debugger.Break();
+                    Debugger.Break();
                 else
                     throw new Exception(message);
             }
@@ -52,7 +52,7 @@ namespace g3
         [Conditional("DEBUG")]
         public static void DebugEdgeInfoFromVertex(DMesh3 mesh, double x, double y, double z)
         {
-            var fnd = Util.FindVertexByCoords(mesh, x, y, z);
+            var fnd = FindVertexByCoords(mesh, x, y, z);
             foreach (var v in fnd)
             {
                 var vtx = mesh.GetVertex(v);

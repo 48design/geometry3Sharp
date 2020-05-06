@@ -50,8 +50,13 @@ namespace g3
             return Center + (2 * t - 1) * Extent * Direction;
         }
 
+        public double Distance(Vector3d p)
+        {
+            var dsq = DistanceSquared(p);
+            return Math.Sqrt(dsq);
+        }
 
-		public double DistanceSquared(Vector3d p)
+        public double DistanceSquared(Vector3d p)
 		{
 			double t = (p - Center).Dot(Direction);
 			if ( t >= Extent )
@@ -61,6 +66,7 @@ namespace g3
 			Vector3d proj = Center + t * Direction;
 			return (proj - p).LengthSquared;
 		}
+
         public double DistanceSquared(Vector3d p, out double t)
         {
             t = (p - Center).Dot(Direction);

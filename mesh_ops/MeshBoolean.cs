@@ -62,6 +62,7 @@ namespace g3
                 AttemptPlanarRemoval = AttemptPlanarRemoval
             };
             cutTargetOp.Compute();
+            
             if (op == boolOperation.Union)
                 cutTargetOp.Remove(MeshMeshCut.IntersectionSets.Internal);
             else if (op == boolOperation.Subtraction)
@@ -73,8 +74,8 @@ namespace g3
             cutTargetMesh = cutTargetOp.Target;
             //
             // Operation on first MeshMesCut ends here
-            // Util.WriteDebugMesh(cutTargetMesh, "", "1");
             
+
             reverseNormal = false;
             cutToolOp = new MeshMeshCut()
             {
@@ -132,23 +133,29 @@ namespace g3
             // tracking on-cut vertices is not working yet...
             Util.gDevAssert(Target.IsClosed() && Tool.IsClosed());
 
-            HashSet<int> targetVerts = new HashSet<int>(MeshIterators.BoundaryVertices(cutTargetMesh));
-            HashSet<int> toolVerts = new HashSet<int>(MeshIterators.BoundaryVertices(cutToolMesh));
+            HashSet<int> targetBoundaryVerts = new HashSet<int>(MeshIterators.BoundaryVertices(cutTargetMesh));
+            HashSet<int> toolBoundaryVerts = new HashSet<int>(MeshIterators.BoundaryVertices(cutToolMesh));
 
-            split_missing(cutTargetOp, cutToolOp, cutTargetMesh, cutToolMesh, targetVerts, toolVerts);
-            split_missing(cutToolOp, cutTargetOp, cutToolMesh, cutTargetMesh, toolVerts, targetVerts);
+            Util.WriteDebugMesh(cutTargetMesh, "", "target");
+            Util.WriteDebugMesh(cutToolMesh, "", "tool");
+
+            // we are trying to ensure that edge vertices are syncronised between cutTargetMesh and cutToolMesh
+            //
+            split_missing(cutTargetMesh, cutToolMesh, targetBoundaryVerts, toolBoundaryVerts);
+            split_missing(cutToolMesh, cutTargetMesh, toolBoundaryVerts, targetBoundaryVerts);
         }
 
 
-        void split_missing(MeshMeshCut fromOp, MeshMeshCut toOp,
-                           DMesh3 fromMesh, DMesh3 toMesh,
-                           HashSet<int> fromVerts, HashSet<int> toVerts)
+        void split_missing(DMesh3 fromMesh, DMesh3 toMesh,
+            HashSet<int> fromVerts, HashSet<int> toVerts)
         {
             List<int> missing = new List<int>();
             foreach (int vid in fromVerts)
             {
+                
+
                 Vector3d v = fromMesh.GetVertex(vid);
-                int near_vid = find_nearest_vertex(toMesh, v, toVerts);
+                int near_vid = findNearestVertexWithinSnapTolerance(toMesh, v, toVerts);
                 if (near_vid == DMesh3.InvalidID)
                     missing.Add(vid);
             }
@@ -159,6 +166,7 @@ namespace g3
                 int near_eid = find_nearest_edge(toMesh, v, toVerts);
                 if (near_eid == DMesh3.InvalidID)
                 {
+                    
                     Console.WriteLine($"could not find edge to split near: {v.CommaDelimited}");
                     continue;
                 }
@@ -176,8 +184,11 @@ namespace g3
             }
         }
 
-
-        int find_nearest_vertex(DMesh3 mesh, Vector3d v, HashSet<int> vertices)
+        /// <summary>
+        /// Looks at all vertices in the list at param vertices and returns the closest within <see cref="VertexSnapTol"/>
+        /// </summary>
+        /// <returns>Closest vertex id if successful, or InvaliId if none is within <see cref="VertexSnapTol"/>.</returns>
+        int findNearestVertexWithinSnapTolerance(DMesh3 mesh, Vector3d v, HashSet<int> vertices)
         {
             int near_vid = DMesh3.InvalidID;
             double nearSqr = VertexSnapTol * VertexSnapTol;

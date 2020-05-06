@@ -321,8 +321,11 @@ namespace g3
             options.bWriteGroups = true;
             options.bPerVertexColors = true;
             options.bPerVertexNormals = true;
-            options.bPerVertexUVs = true;
+            // options.bPerVertexUVs = false;
             StandardMeshWriter.WriteFile(sPath, new List<WriteMesh>() { new WriteMesh(mesh) }, options);
+
+            FileInfo f = new FileInfo(sPath);
+            Debug.WriteLine($"Written debug mesh to:\r\n{f.FullName}"); 
         }
 
         

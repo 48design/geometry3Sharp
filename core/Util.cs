@@ -316,6 +316,13 @@ namespace g3
             {
                 sPath = Path.ChangeExtension(sPath, $".{extraid}.obj");
             }
+
+            var closed = "Undefined";
+            if (mesh is DMesh3 dm3)
+            {
+                closed = dm3.IsClosed().ToString();
+            }
+
             
             WriteOptions options = WriteOptions.Defaults;
             options.bWriteGroups = true;
@@ -325,7 +332,7 @@ namespace g3
             StandardMeshWriter.WriteFile(sPath, new List<WriteMesh>() { new WriteMesh(mesh) }, options);
 
             FileInfo f = new FileInfo(sPath);
-            Debug.WriteLine($"Written debug mesh to:\r\n{f.FullName}"); 
+            Debug.WriteLine($"Written debug mesh (Closed: {closed}) to:\r\n{f.FullName}"); 
         }
 
         

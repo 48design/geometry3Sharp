@@ -50,19 +50,22 @@ namespace g3
 
             if (true) // new way
             {
+                int iProg = 0;
                 var intersections = targetSpatial.FindAllIntersections(cutSpatial);
                 // Util.DebugIntersectionsInfo(intersections, Target, CutMesh);
                 var queue = new Queue<DMeshAABBTree3.SegmentIntersection>(intersections.Segments);
                 while (queue.Count > 0)
                 {
                     var currentIntersectionSegment = queue.Dequeue();
-                    Util.WriteDebugMesh(Target, "", "target");
+                    // Util.WriteDebugMesh(Target, "", "target");
                     // first we need to understand what type of points the segment spans 
                     // e.g. From triangle vertex to a point on an edge.
                     // see MeshMeshCut.svg for visuals.
                     //
                     var currSegment = GetSegment(currentIntersectionSegment);
-                    Debug.WriteLine(currSegment);
+                    Debug.WriteLine(currSegment + " " + iProg);
+                    Util.WriteDebugMesh(Target, "", iProg.ToString() );
+                    iProg++;
                     if (currSegment.v0.type == SegmentVtx.pointTopology.OnVertex
                         &&
                         currSegment.v1.type == SegmentVtx.pointTopology.OnVertex
@@ -147,6 +150,7 @@ namespace g3
 
         private void SplitEdge(SegmentVtx edgeInfo)
         {
+            Debug.WriteLine($"  Split Edge {edgeInfo.elem_id}");
             DMesh3.EdgeSplitInfo splitInfo;
             MeshResult result = Target.SplitEdge(edgeInfo.elem_id, out splitInfo);
             if (result != MeshResult.Ok)
@@ -157,6 +161,7 @@ namespace g3
 
         private void PokeTriangle(SegmentVtx resultOnFace)
         {
+            Debug.WriteLine($"  Poke Tri {resultOnFace.elem_id}");
             MeshResult result = Target.PokeTriangle(resultOnFace.elem_id, out DMesh3.PokeTriangleInfo pokeInfo);
             if (result != MeshResult.Ok)
                 throw new Exception("PokeTriangle failed in MeshMeshCut insert_face_vertices()");

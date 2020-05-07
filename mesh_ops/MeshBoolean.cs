@@ -74,7 +74,7 @@ namespace g3
             cutTargetMesh = cutTargetOp.Target;
             //
             // Operation on first MeshMesCut ends here
-            
+            Util.WriteDebugMesh(cutTargetMesh, "", "1");
 
             reverseNormal = false;
             cutToolOp = new MeshMeshCut()
@@ -99,7 +99,7 @@ namespace g3
             cutToolMesh = cutToolOp.Target;
             //
             // Operation on second MeshMesCut ends here
-            // Util.WriteDebugMesh(cutTargetMesh, "", "2");
+            Util.WriteDebugMesh(cutToolMesh, "", "2");
 
 
             resolve_vtx_pairs();

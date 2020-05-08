@@ -8,15 +8,6 @@ using System.Linq;
 
 namespace g3
 {
-    /// <summary>
-    /// 
-    /// 
-    /// TODO:
-    ///    - track descendant triangles of each input face
-    ///    - for missing segments, can resolve in 2D in plane of face
-    /// 
-    /// 
-    /// </summary>
     public class MeshMeshCut
     {
         public DMesh3 Target;
@@ -29,7 +20,7 @@ namespace g3
 
         // List of vertices in output Target that are on the
         // cut path, after calling RemoveContained. 
-        // TODO: still missing some vertices??
+        // 
         public List<int> CutVertices;
 
 
@@ -37,8 +28,6 @@ namespace g3
         {
             double cellSize = Target.CachedBounds.MaxDim / 64;
             PointHash = new PointHashGrid3d<int>(cellSize, -1);
-           
-
 
             // insert target vertices into hash for quick lookup
             foreach (int vid in Target.VertexIndices())
@@ -47,104 +36,83 @@ namespace g3
                 AddPointHash(vid, v);
             }
 
-            initialize();
+            Initialize();
+            int iProg = 0;
+            var intersectionSegments = TargetSpatial.FindAllIntersections(CutSpatial);
 
-            if (true) // new way
+            // All intersection segments have to be created ahead of changing the shape
+            // to allow the identification of triangle ids from the spatial
+            // when the shape changes we then look at the impacted points and update them.
+            //
+
+            // todo: review queue processing so that TT are processed at the very last
+
+            var queue = CreateQueue(intersectionSegments.Segments);
+            while (queue.Count > 0)
             {
-                int iProg = 0;
-                var intersectionSegments = targetSpatial.FindAllIntersections(cutSpatial);
-                
-                // All intersection segments have to be created ahead of changing the shape
-                // to allow the identification of triangle ids from the spatial
-                // when the shape changes we then look at the impacted points and update them.
+                var currSegment = queue.Dequeue();
+                // Util.WriteDebugMesh(Target, "", "target");
+                // first we need to understand what type of points the segment spans 
+                // e.g. From triangle vertex to a point on an edge.
+                // see MeshMeshCut.svg for visuals.
                 //
-                var queue = CreateQueue(intersectionSegments.Segments);
-                while (queue.Count > 0)
+
+                Debug.WriteLine(currSegment + " " + iProg);
+                // Util.WriteDebugMesh(Target, "", iProg.ToString() );
+                iProg++;
+                if (currSegment.v0.type == SegmentVtx.PointTopology.OnVertex
+                    &&
+                    currSegment.v1.type == SegmentVtx.PointTopology.OnVertex
+                    )
                 {
-                    var currSegment = queue.Dequeue();
-                    // Util.WriteDebugMesh(Target, "", "target");
-                    // first we need to understand what type of points the segment spans 
-                    // e.g. From triangle vertex to a point on an edge.
-                    // see MeshMeshCut.svg for visuals.
-                    //
-                    
-                    Debug.WriteLine(currSegment + " " + iProg);
-                    Util.WriteDebugMesh(Target, "", iProg.ToString() );
-                    iProg++;
-                    if (currSegment.v0.type == SegmentVtx.pointTopology.OnVertex
-                        &&
-                        currSegment.v1.type == SegmentVtx.pointTopology.OnVertex
-                        )
-                    {
-                        // nothing to do // Case VV
-                        continue;
-                    }
-                    else if (currSegment.TryGetVertex(SegmentVtx.pointTopology.OnTriangle, out SegmentVtx resultOnFace))
-                    {
-                        // Cases TV / TE / TT
+                    // nothing to do // Case VV
+                    continue;
+                }
+                else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnTriangle, out SegmentVtx resultOnFace))
+                {
+                    // Cases TV / TE / TT
 
-                        // poke tri at point.
-                        PokeTriangle(resultOnFace);
+                    // poke tri at point.
+                    PokeTriangle(resultOnFace);
 
-                        var other = currSegment.GetOpposite();
-                        if (other.type == SegmentVtx.pointTopology.OnVertex)
-                            continue; // TV
-                        if (other.type == SegmentVtx.pointTopology.OnEdge)
-                        {
-                            // Case TE
-                            // split edge B
-                            SplitEdge(other);
-                        }
-                        else
-                        {
-                            // Case TT, after the poketriangle is now downgraded to VE or VT 
-                            // sent at the back of the queue, hopefully some other will happen 
-                            // more efficiently on the triangle, if needed
-                            //
-                            queue.Enqueue(currSegment);
-                        }
-                    }
-                    else if (currSegment.TryGetVertex(SegmentVtx.pointTopology.OnVertex, out _))
+                    var other = currSegment.GetOpposite();
+                    if (other.type == SegmentVtx.PointTopology.OnVertex)
+                        continue; // TV
+                    if (other.type == SegmentVtx.PointTopology.OnEdge)
                     {
-                        // case VE
-                        // if one point is on a vertex:
-                        // vertex does not need any action, 
-                        // the other edge needs to be split
-                        var other = currSegment.GetOpposite();
-                        SplitEdge(other);
-                    }
-                    else if (currSegment.TryGetFirstEdgeSplit(Target, out SegmentVtx firstEdgeSplit))
-                    {
-                        // Case EE
-                        SplitEdge(firstEdgeSplit);
-                        var other = currSegment.GetOpposite();
+                        // Case TE
+                        // split edge B
                         SplitEdge(other);
                     }
                     else
-                        throw new Exception("Unexpected flow in MeshCut.");
+                    {
+                        // Case TT, after the poketriangle is now downgraded to VE or VT 
+                        // sent at the back of the queue, hopefully some other will happen 
+                        // more efficiently on the triangle, if needed
+                        //
+                        queue.Enqueue(currSegment);
+                    }
                 }
-
-            }
-            else 
-            {
-                find_segments(); // This populates fields: Segments, EdgeVertices and FaceVertices 
-
-                insert_face_vertices(); // inserts the content of FaceVertices field
-                Util.WriteDebugMesh(Target, "", "target");
-                insert_edge_vertices(); // inserts the content of EdgeVertices field
-                Util.WriteDebugMesh(Target, "", "target");
-                connect_edges();
-                Util.WriteDebugMesh(Target, "", "target");
-
-                // SegmentInsertVertices was constructed by planar polygon
-                // insertions in MeshInsertUVPolyCurve calls, but we also
-                // need to segment the vertices
-                foreach (SegmentVtx sv in SegVertices)
-                    SegmentInsertVertices.Add(sv.vtx_id);
+                else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnVertex, out _))
+                {
+                    // case VE
+                    // if one point is on a vertex:
+                    // vertex does not need any action, 
+                    // the other edge needs to be split
+                    var other = currSegment.GetOpposite();
+                    SplitEdge(other);
+                }
+                else if (currSegment.TryGetFirstEdgeSplit(Target, out SegmentVtx firstEdgeSplit))
+                {
+                    // Case EE
+                    SplitEdge(firstEdgeSplit);
+                    var other = currSegment.GetOpposite();
+                    SplitEdge(other);
+                }
+                else
+                    throw new Exception("Unexpected flow in MeshCut.");
             }
         }
-
-
 
         private Queue<IntersectSegment> CreateQueue(List<DMeshAABBTree3.SegmentIntersection> segments)
         {
@@ -169,9 +137,7 @@ namespace g3
             {
                 var vertexCoordinatesSought = segmentPoints[currentPointIndex];
 
-
-                SegmentVtx sv;
-                if (SegVtxMap.TryGetValue(vertexCoordinatesSought, out sv))
+                if (SegVtxMap.TryGetValue(vertexCoordinatesSought, out SegmentVtx sv))
                 {
                     retValue[currentPointIndex] = sv;
                     continue;
@@ -180,10 +146,10 @@ namespace g3
                 retValue[currentPointIndex] = sv;
 
                 // this vtx is tol-equal to input mesh vtx
-                int existing_v = find_existing_vertex(vertexCoordinatesSought);
+                int existing_v = FindExistingVertex(vertexCoordinatesSought);
                 if (existing_v >= 0)
                 {
-                    sv.initial_type = sv.type = SegmentVtx.pointTopology.OnVertex;
+                    sv.initial_type = sv.type = SegmentVtx.PointTopology.OnVertex;
                     sv.elem_id = existing_v;
                     sv.vtx_id = existing_v;
                     continue;
@@ -194,29 +160,28 @@ namespace g3
                 Index3i tv = Target.GetTriangle(isect.t0);
 
                 // this vtx is tol-on input mesh edge
-                int on_edge_i = on_edge(ref tri, ref vertexCoordinatesSought);
+                int on_edge_i = FindEdgeContaining(ref vertexCoordinatesSought, ref tri);
                 if (on_edge_i >= 0)
                 {
-                    sv.initial_type = sv.type = SegmentVtx.pointTopology.OnEdge;
+                    sv.initial_type = sv.type = SegmentVtx.PointTopology.OnEdge;
                     sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i + 1) % 3]);
                     Util.gDevAssert(sv.elem_id != DMesh3.InvalidID);
-                    add_edge_vtx(sv);
+                    AddVtxOnEdge(sv);
                     continue;
                 }
 
                 // otherwise contained in input mesh face
-                sv.initial_type = sv.type = SegmentVtx.pointTopology.OnTriangle;
+                sv.initial_type = sv.type = SegmentVtx.PointTopology.OnTriangle;
                 sv.elem_id = isect.t0;
-                add_face_vtx(sv);
+                AddVtxOnFace(sv);
             }
 
             return retValue;
         }
 
-
         private void AddPointHash(int vid, Vector3d v)
         {
-            int existing = find_existing_vertex(v);
+            int existing = FindExistingVertex(v);
             if (existing != -1)
             {
                 var fnd = Target.GetVertex(existing);
@@ -228,7 +193,7 @@ namespace g3
 
         private void BreakOn(SegmentVtx vertex)
         {
-            if (vertex.type == SegmentVtx.pointTopology.OnVertex)
+            if (vertex.type == SegmentVtx.PointTopology.OnVertex)
                 return;
 
             // because we're changing the mesh geometry, we will have to reassign some of the other 
@@ -240,7 +205,7 @@ namespace g3
 
 
             int new_v = -1;
-            if (vertex.type == SegmentVtx.pointTopology.OnTriangle)
+            if (vertex.type == SegmentVtx.PointTopology.OnTriangle)
             {
                 Debug.WriteLine($"  Poke Tri {vertex.elem_id}");
                 trisToReassign = new int[] { vertex.elem_id };
@@ -257,7 +222,7 @@ namespace g3
                 // var newT = pokeInfo.
 
             }
-            else if (vertex.type == SegmentVtx.pointTopology.OnEdge)
+            else if (vertex.type == SegmentVtx.PointTopology.OnEdge)
             {
                 Debug.WriteLine($"  Split Edge {vertex.elem_id}");
                 var connectedTris = Target.GetEdgeT(vertex.elem_id);
@@ -272,7 +237,7 @@ namespace g3
                 candidateNewEdges = new int[] { splitInfo.eNewBN, splitInfo.eNewCN, splitInfo.eNewDN };
             }
             // first we fix the current vertex
-            vertex.type = SegmentVtx.pointTopology.OnVertex; // we've just changed the geometry so that the vertex is certainly there
+            vertex.type = SegmentVtx.PointTopology.OnVertex; // we've just changed the geometry so that the vertex is certainly there
             vertex.vtx_id = vertex.elem_id = new_v;
             Target.SetVertex(new_v, vertex.v);
             AddPointHash(new_v, vertex.v);
@@ -296,21 +261,21 @@ namespace g3
             // finally reassign
             foreach (var reviewVertex in toReassign)
             {
-                reassignVertex(reviewVertex, candidateNewTris, candidateNewEdges);
+                ReassignVertex(reviewVertex, candidateNewTris, candidateNewEdges);
             }
         }
 
-        private void reassignVertex(SegmentVtx sv, IList<int> candidateNewTris, IList<int> candidateNewEdges)
+        private void ReassignVertex(SegmentVtx sv, IList<int> candidateNewTris, IList<int> candidateNewEdges)
         {
             // if already fixed, nothing to do
-            if (sv.type == SegmentVtx.pointTopology.OnVertex)
+            if (sv.type == SegmentVtx.PointTopology.OnVertex)
                 return;
 
             // check if within tolerance of existing vtx
-            int existing_v = find_existing_vertex(sv.v);
+            int existing_v = FindExistingVertex(sv.v);
             if (existing_v >= 0)
             {
-                sv.type = SegmentVtx.pointTopology.OnVertex;
+                sv.type = SegmentVtx.PointTopology.OnVertex;
                 sv.elem_id = existing_v;
                 sv.vtx_id = existing_v;
                 VIDToSegVtxMap[sv.vtx_id] = sv;
@@ -319,11 +284,11 @@ namespace g3
 
             for (int j = 0; j < candidateNewEdges.Count; ++j)
             {
-                if (is_on_edge(candidateNewEdges[j], sv.v))
+                if (IsOnEdge(sv.v, candidateNewEdges[j]))
                 {
-                    sv.type = SegmentVtx.pointTopology.OnEdge;
+                    sv.type = SegmentVtx.PointTopology.OnEdge;
                     sv.elem_id = candidateNewEdges[j];
-                    add_edge_vtx(sv);
+                    AddVtxOnEdge(sv);
                     return;
                 }
             }
@@ -331,16 +296,16 @@ namespace g3
             // [TODO] should use PrimalQuery2d for this!
             for (int j = 0; j < candidateNewTris.Count; ++j)
             {
-                if (is_in_triangle(candidateNewTris[j], sv.v))
+                if (IsInTriangle(sv.v, candidateNewTris[j]))
                 {
-                    sv.type = SegmentVtx.pointTopology.OnTriangle;
+                    sv.type = SegmentVtx.PointTopology.OnTriangle;
                     sv.elem_id = candidateNewTris[j];
-                    add_face_vtx(sv);
+                    AddVtxOnFace(sv);
                     return;
                 }
             }
             // Debug.WriteLine("Unchanged");
-            add_vtx(sv);
+            Add_vtx(sv);
         }
 
         private void SplitEdge(SegmentVtx edgeInfo)
@@ -353,8 +318,6 @@ namespace g3
             BreakOn(resultOnFace);
         }
 
-
-
         /// <summary>
         /// Removes the opposite triangles of <see cref="RemoveContained()"/> 
         /// </summary>
@@ -362,7 +325,6 @@ namespace g3
         {
             Remove(IntersectionSets.ExternalPlusShared);
         }
-
 
         public void RemoveContained()
         {
@@ -386,8 +348,6 @@ namespace g3
         //         |
         //         +----------------- External
 
-
-
         [Flags]
         public enum IntersectionSets
         {
@@ -408,9 +368,6 @@ namespace g3
         /// Relies correct winding of faces to determine direction of offset.
         /// </summary>
         public bool AttemptPlanarRemoval { get; set; } = true;
-
-
-        //private SafeListBuilder<int> InvalidT = new SafeListBuilder<int>();
 
         public IEnumerable<int> Remove(IntersectionSets rem)
         {
@@ -461,7 +418,7 @@ namespace g3
 #if ACAD
             var lastColor = 0;
 #endif
-            cutSpatial.WindingNumber(Vector3d.Zero);
+            CutSpatial.WindingNumber(Vector3d.Zero);
             var nrmOffset = -5 * VertexSnapTol;
 
             SafeListBuilder<int> returnValues = new SafeListBuilder<int>();
@@ -482,7 +439,7 @@ namespace g3
                     vEvaluatingTrianglePoint += nrm * nrmOffset;
 
 
-                var winding = cutSpatial.WindingNumber(vEvaluatingTrianglePoint);
+                var winding = CutSpatial.WindingNumber(vEvaluatingTrianglePoint);
                 bool isNotSelected = winding > 0.9;
 #if ACAD
                 // temporarily here for debug purposes
@@ -500,7 +457,7 @@ namespace g3
                 if (isNotSelected && includeShared)
                 {
                     var vEvaluatingOut = vCentroid - nrm * nrmOffset;
-                    winding = cutSpatial.WindingNumber(vEvaluatingOut);
+                    winding = CutSpatial.WindingNumber(vEvaluatingOut);
                     isNotSelected = winding > 0.9;
                 }
 
@@ -508,16 +465,6 @@ namespace g3
                     returnValues.SafeAdd(tid);
             });
             return returnValues.Result;
-        }
-
-        public void AppendSegments(double r)
-        {
-            foreach (var seg in Segments)
-            {
-                Segment3d s = new Segment3d(seg.v0.v, seg.v1.v);
-                if (Target.FindEdge(seg.v0.vtx_id, seg.v1.vtx_id) == DMesh3.InvalidID)
-                    MeshEditor.AppendLine(Target, s, (float)r);
-            }
         }
 
         public void ColorFaces()
@@ -536,10 +483,9 @@ namespace g3
             }
         }
 
-
         class SegmentVtx
         {
-            internal enum pointTopology
+            internal enum PointTopology
             {
                 Undefined = -1,
                 OnVertex = 0,
@@ -548,8 +494,8 @@ namespace g3
             }
 
             public Vector3d v;
-            public pointTopology type = pointTopology.Undefined;
-            public pointTopology initial_type = pointTopology.Undefined;
+            public PointTopology type = PointTopology.Undefined;
+            public PointTopology initial_type = PointTopology.Undefined;
             public int vtx_id = DMesh3.InvalidID;
             public int elem_id = DMesh3.InvalidID;
 
@@ -558,7 +504,7 @@ namespace g3
             {
                 Debug.WriteLine($"  {varName}");
                 Debug.WriteLine($"    v: {v.CommaDelimited}");
-                if (type == pointTopology.OnVertex && vtx_id == -1)
+                if (type == PointTopology.OnVertex && vtx_id == -1)
                     Debug.WriteLine($"    type: {type}");
                 if (initial_type != type)
                     Debug.WriteLine($"    initial_type: {initial_type} **");
@@ -569,7 +515,6 @@ namespace g3
             }
         }
 
-        List<SegmentVtx> SegVertices;
         Dictionary<int, SegmentVtx> VIDToSegVtxMap;
 
 
@@ -612,7 +557,7 @@ namespace g3
 
             int otherVertex = -1;
 
-            internal bool TryGetVertex(SegmentVtx.pointTopology required, out SegmentVtx result)
+            internal bool TryGetVertex(SegmentVtx.PointTopology required, out SegmentVtx result)
             {
                 if (v0.type == required)
                 {
@@ -648,7 +593,7 @@ namespace g3
                 // most homogeneus lenght of the opposite edge A 
                 // (See MeshMeshCut.svg)
                 // 
-                if (v0.type != SegmentVtx.pointTopology.OnEdge || v1.type != SegmentVtx.pointTopology.OnEdge)
+                if (v0.type != SegmentVtx.PointTopology.OnEdge || v1.type != SegmentVtx.PointTopology.OnEdge)
                 {
                     firstEdgeSplit = null;
                     return false;
@@ -685,11 +630,6 @@ namespace g3
             }
         }
 
-
-
-
-        IntersectSegment[] Segments;
-
         /// <summary>
         /// The centroid of each triangle in the target mesh, by ID
         /// </summary>
@@ -708,7 +648,7 @@ namespace g3
         /// Computes <see cref="BaseFaceCentroids"/> and <see cref="BaseFaceNormals"/>.
         /// Allocates other sets.
         /// </summary>
-        void initialize()
+        private void Initialize()
         {
             BaseFaceCentroids = new Vector3d[Target.MaxTriangleID];
             BaseFaceNormals = new Vector3d[Target.MaxTriangleID];
@@ -716,7 +656,6 @@ namespace g3
                 Target.GetTriInfo(tid, out BaseFaceNormals[tid], out _, out BaseFaceCentroids[tid]);
 
             // allocate internals
-            SegVertices = new List<SegmentVtx>();
             EdgeVertices = new Dictionary<int, List<SegmentVtx>>();
             FaceVertices = new Dictionary<int, List<SegmentVtx>>();
             SubFaces = new Dictionary<int, HashSet<int>>();
@@ -725,9 +664,8 @@ namespace g3
             VIDToSegVtxMap = new Dictionary<int, SegmentVtx>();
         }
 
-
-        DMeshAABBTree3 _targetSpatial;
-        DMeshAABBTree3 targetSpatial
+        private DMeshAABBTree3 _targetSpatial;
+        private DMeshAABBTree3 TargetSpatial
         {
             get
             {
@@ -738,8 +676,10 @@ namespace g3
                 return _targetSpatial;
             }
         }
-        DMeshAABBTree3 _cutSpatial;
-        DMeshAABBTree3 cutSpatial
+
+        private DMeshAABBTree3 _cutSpatial;
+
+        private DMeshAABBTree3 CutSpatial
         {
             get
             {
@@ -751,105 +691,8 @@ namespace g3
             }
         }
 
-        /// <summary>
-        /// 1) Find intersection segments
-        /// 2) map them onto existing input mesh vtx/edge/face
-        ///    This populates <see cref="Segments"/>, <see cref="EdgeVertices"/> and <see cref="FaceVertices"/>
-        /// </summary>
-        void find_segments()
-        {
-            Dictionary<Vector3d, SegmentVtx> SegVtxMap = new Dictionary<Vector3d, SegmentVtx>();
-
-            // find intersection segments
-            // TODO: intersection polygons
-            // TODO: do we need to care about intersection vertices?
-            var intersections = targetSpatial.FindAllIntersections(cutSpatial);
-
-            Util.DebugIntersectionsInfo(intersections, Target, CutMesh);
-
-            // for each segment, for each vtx, determine if it is 
-            // at an existing vertex, on-edge, or in-face
-            Segments = new IntersectSegment[intersections.Segments.Count];
-            for (int i = 0; i < Segments.Length; ++i)
-            {
-                var isect = intersections.Segments[i];
-                IntersectSegment iseg = GetSegment(SegVtxMap, i, isect);
-
-                Debug.WriteLine(iseg);
-            }
-            if (false)
-            {
-                DebugPoint(new Vector3d(-0.5, -0.499666444296197, 1), intersections);
-            }
-            else if (false)
-            {
-                // DebugPoint(new Vector3d(0, -.5, 0.5), intersections);
-                IntersectSegment.DebugInfo(Segments);
-                DebugInfo("Triangle", FaceVertices);
-                DebugInfo("Edge", EdgeVertices);
-            }
-        }
-
-        private IntersectSegment GetSegment(Dictionary<Vector3d, SegmentVtx> SegVtxMap, int i, DMeshAABBTree3.SegmentIntersection isect)
-        {
-            Vector3dTuple2 points = new Vector3dTuple2(isect.point0, isect.point1);
-            IntersectSegment iseg = new IntersectSegment()
-            {
-                base_tid = isect.t0
-            };
-            Segments[i] = iseg;
-            for (int j = 0; j < 2; ++j)
-            {
-                Vector3d v = points[j];
-
-                // if this exact vtx coord has been seen, use same vtx
-                SegmentVtx sv;
-                if (SegVtxMap.TryGetValue(v, out sv))
-                {
-                    iseg[j] = sv;
-                    continue;
-                }
-                sv = new SegmentVtx() { v = v };
-                SegVertices.Add(sv);
-                SegVtxMap[v] = sv;
-                iseg[j] = sv;
-
-                // this vtx is tol-equal to input mesh vtx
-                int existing_v = find_existing_vertex(v);
-                if (existing_v >= 0)
-                {
-                    sv.initial_type = sv.type = SegmentVtx.pointTopology.OnVertex;
-                    sv.elem_id = existing_v;
-                    sv.vtx_id = existing_v;
-                    VIDToSegVtxMap[sv.vtx_id] = sv;
-                    continue;
-                }
-
-                Triangle3d tri = new Triangle3d();
-                Target.GetTriVertices(isect.t0, ref tri.V0, ref tri.V1, ref tri.V2);
-                Index3i tv = Target.GetTriangle(isect.t0);
-
-                // this vtx is tol-on input mesh edge
-                int on_edge_i = on_edge(ref tri, ref v);
-                if (on_edge_i >= 0)
-                {
-                    sv.initial_type = sv.type = SegmentVtx.pointTopology.OnEdge;
-                    sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i + 1) % 3]);
-                    Util.gDevAssert(sv.elem_id != DMesh3.InvalidID);
-                    add_edge_vtx(sv);
-                    continue;
-                }
-
-                // otherwise contained in input mesh face
-                sv.initial_type = sv.type = SegmentVtx.pointTopology.OnTriangle;
-                sv.elem_id = isect.t0;
-                add_face_vtx(sv);
-            }
-
-            return iseg;
-        }
-
         [Conditional("DEBUG")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Used in debug")]
         private void DebugPoint(Vector3d vector3d, DMeshAABBTree3.IntersectionsQueryResult intersections)
         {
             Debug.WriteLine($"=====  Search {vector3d.CommaDelimited}");
@@ -889,6 +732,7 @@ namespace g3
         }
 
         [Conditional("DEBUG")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Used in debug")]
         private void DebugInfo(string type, Dictionary<int, List<SegmentVtx>> vtcs, Vector3d? query = null)
         {
             // Debug.WriteLine(type + "s");
@@ -912,280 +756,18 @@ namespace g3
             }
         }
 
-        /// <summary>
-        /// For each on-face vtx, we poke the face, and re-sort 
-        /// the remaining vertices on that face onto new faces/edges
-        /// </summary>
-        void insert_face_vertices()
-        {
-            while (FaceVertices.Count > 0)
-            {
-                var pair = FaceVertices.First();
-                int tid = pair.Key;
-                List<SegmentVtx> triVerts = pair.Value;
-                SegmentVtx v = triVerts[triVerts.Count - 1];
-                triVerts.RemoveAt(triVerts.Count - 1);
-
-                DMesh3.PokeTriangleInfo pokeInfo;
-                MeshResult result = Target.PokeTriangle(tid, out pokeInfo);
-                if (result != MeshResult.Ok)
-                    throw new Exception("PokeTriangle failed in MeshMeshCut insert_face_vertices()");
-                int new_v = pokeInfo.new_vid;
-
-                Target.SetVertex(new_v, v.v);
-                v.vtx_id = new_v;
-                VIDToSegVtxMap[v.vtx_id] = v;
-                PointHash.InsertPoint(v.vtx_id, v.v);
-
-                // remove this triangles vtx list because it is no longer valid
-                FaceVertices.Remove(tid);
-
-                // update remaining verts
-                Index3i pokeEdges = pokeInfo.new_edges;
-                Index3i pokeTris = new Index3i(tid, pokeInfo.new_t1, pokeInfo.new_t2);
-                foreach (SegmentVtx sv in triVerts)
-                {
-                    update_from_poke(sv, pokeEdges, pokeTris);
-                    if (sv.type == SegmentVtx.pointTopology.OnEdge)
-                        add_edge_vtx(sv);
-                    else if (sv.type == SegmentVtx.pointTopology.OnTriangle)
-                        add_face_vtx(sv);
-                }
-
-                // track poke subfaces
-                add_poke_subfaces(tid, ref pokeInfo);
-            }
-        }
-
-        /// <summary>
-        /// figure out which vtx/edge/face the vtx now falls on
-        /// </summary>
-        void update_from_poke(SegmentVtx sv, Index3i candidateNewEdges, Index3i candidateNewTris)
-        {
-            // check if within tolerance of existing vtx
-            int existing_v = find_existing_vertex(sv.v);
-            if (existing_v >= 0)
-            {
-                sv.type = SegmentVtx.pointTopology.OnVertex;
-                sv.elem_id = existing_v;
-                sv.vtx_id = existing_v;
-                VIDToSegVtxMap[sv.vtx_id] = sv;
-                return;
-            }
-
-            for (int j = 0; j < 3; ++j)
-            {
-                if (is_on_edge(candidateNewEdges[j], sv.v))
-                {
-                    sv.type = SegmentVtx.pointTopology.OnEdge;
-                    sv.elem_id = candidateNewEdges[j];
-                    return;
-                }
-            }
-
-            // [TODO] should use PrimalQuery2d for this!
-            for (int j = 0; j < 3; ++j)
-            {
-                if (is_in_triangle(candidateNewTris[j], sv.v))
-                {
-                    sv.type = SegmentVtx.pointTopology.OnTriangle;
-                    sv.elem_id = candidateNewTris[j];
-                    return;
-                }
-            }
-
-            Console.WriteLine("unsorted vertex!");
-            sv.elem_id = candidateNewTris.a;
-        }
-
-
-
-
-        /// <summary>
-        /// for each on-edge vtx, we split the edge and then
-        /// re-sort any of the vertices on that edge onto new edges
-        /// </summary>
-        void insert_edge_vertices()
-        {
-            while (EdgeVertices.Count > 0)
-            {
-                var preCount = Target.TriangleCount;
-                var pair = EdgeVertices.First();
-                int eid = pair.Key;
-                List<SegmentVtx> edgeVerts = pair.Value;
-                SegmentVtx v = edgeVerts[edgeVerts.Count - 1];
-
-                edgeVerts.RemoveAt(edgeVerts.Count - 1);
-                Index2i splitTris = Target.GetEdgeT(eid);
-
-                DMesh3.EdgeSplitInfo splitInfo;
-                MeshResult result = Target.SplitEdge(eid, out splitInfo);
-                if (result != MeshResult.Ok)
-                    throw new Exception("insert_edge_vertices: split failed!");
-                int new_v = splitInfo.vNew;
-                Index2i splitEdges = new Index2i(eid, splitInfo.eNewBN);
-
-                Target.SetVertex(new_v, v.v);
-                v.vtx_id = new_v;
-                VIDToSegVtxMap[v.vtx_id] = v;
-                PointHash.InsertPoint(v.vtx_id, v.v);
-
-                // remove this triangles vtx list because it is no longer valid
-                EdgeVertices.Remove(eid);
-
-                // update remaining verts
-                foreach (SegmentVtx sv in edgeVerts)
-                {
-                    update_from_split(sv, splitEdges);
-                    if (sv.type == SegmentVtx.pointTopology.OnEdge)
-                        add_edge_vtx(sv);
-                }
-
-                // track subfaces
-                add_split_subfaces(splitTris, ref splitInfo);
-                var diff = Target.TriangleCount - preCount;
-                Debug.WriteLine($"Diff: {diff}");
-            }
-        }
-
-
-
-        /// <summary>
-        /// figure out which vtx/edge the input vtx is on
-        /// </summary>
-        void update_from_split(SegmentVtx sv, Index2i candidateNewdges)
-        {
-            // check if within tolerance of existing vtx, because we did not 
-            // sort that out before...
-            //
-            int existing_v = find_existing_vertex(sv.v);
-
-            if (
-                existing_v >= 0 
-                && 
-                Target.VtxEdgesItr(existing_v).Intersect(candidateNewdges.array).Any() // to respect topology the point needs to be on the splitEdges
-                ) 
-            {
-                sv.type = SegmentVtx.pointTopology.OnVertex;
-                sv.elem_id = existing_v;
-                sv.vtx_id = existing_v;
-                VIDToSegVtxMap[sv.vtx_id] = sv;
-                return;
-            }
-
-            for (int j = 0; j < 2; ++j)
-            {
-                if (is_on_edge(candidateNewdges[j], sv.v))
-                {
-                    sv.type = SegmentVtx.pointTopology.OnEdge;
-                    sv.elem_id = candidateNewdges[j];
-                    return;
-                }
-            }
-
-            throw new Exception("update_from_split: unsortable vertex?");
-        }
-
-        /// <summary>
-        /// Make sure that all intersection segments are represented by
-        /// a connected chain of edges.
-        /// </summary>
-        void connect_edges()
-        {
-            int NS = Segments.Length;
-            for (int si = 0; si < NS; ++si)
-            {
-                IntersectSegment seg = Segments[si];
-                if (seg.v0 == seg.v1)
-                    continue;       // degenerate!
-                if (seg.v0.vtx_id == seg.v1.vtx_id)
-                    continue;       // also degenerate and how does this happen?
-
-                int a = seg.v0.vtx_id, b = seg.v1.vtx_id;
-
-                if (a == DMesh3.InvalidID || b == DMesh3.InvalidID)
-                    throw new Exception("segment vertex is not defined?");
-                int eid = Target.FindEdge(a, b);
-                if (eid != DMesh3.InvalidID)
-                    continue;       // already connected
-
-                // TODO: in many cases there is an edge we added during a
-                // poke or split that we could flip to get edge AB. 
-                // this is much faster and we should do it where possible!
-                // HOWEVER we need to know which edges we can and cannot flip
-                // is_inserted_free_edge() should do this but not implemented yet
-                // possibly also requires that we do all these flips before any
-                // calls to insert_segment() !
-
-                try
-                {
-                    insert_segment(seg);
-                }
-                catch (Exception)
-                {
-                    // ignore?
-                }
-            }
-        }
-
-
-        void insert_segment(IntersectSegment seg)
-        {
-            List<int> subfaces = get_all_baseface_tris(seg.base_tid);
-
-            RegionOperator op = new RegionOperator(Target, subfaces);
-
-            Vector3d n = BaseFaceNormals[seg.base_tid];
-            Vector3d c = BaseFaceCentroids[seg.base_tid];
-            Vector3d e0, e1;
-            Vector3d.MakePerpVectors(ref n, out e0, out e1);
-
-            DMesh3 mesh = op.Region.SubMesh;
-            MeshTransforms.PerVertexTransform(mesh, (v) =>
-            {
-                v -= c;
-                return new Vector3d(v.Dot(e0), v.Dot(e1), 0);
-            });
-
-            Vector3d end0 = seg.v0.v, end1 = seg.v1.v;
-            end0 -= c; end1 -= c;
-            Vector2d p0 = new Vector2d(end0.Dot(e0), end0.Dot(e1));
-            Vector2d p1 = new Vector2d(end1.Dot(e0), end1.Dot(e1));
-            PolyLine2d path = new PolyLine2d();
-            path.AppendVertex(p0); path.AppendVertex(p1);
-
-            MeshInsertUVPolyCurve insert = new MeshInsertUVPolyCurve(mesh, path);
-            insert.Apply();
-
-            MeshVertexSelection cutVerts = new MeshVertexSelection(mesh);
-            cutVerts.SelectEdgeVertices(insert.OnCutEdges);
-
-            MeshTransforms.PerVertexTransform(mesh, (v) =>
-            {
-                return c + v.x * e0 + v.y * e1;
-            });
-
-            op.BackPropropagate();
-
-            // add new cut vertices to cut list
-            foreach (int vid in cutVerts)
-                SegmentInsertVertices.Add(op.ReinsertSubToBaseMapV[vid]);
-
-            add_regionop_subfaces(seg.base_tid, op);
-        }
-
-        void add_vtx(SegmentVtx vtx)
+        void Add_vtx(SegmentVtx vtx)
         {
             switch (vtx.type)
             {
-                case SegmentVtx.pointTopology.OnVertex:
+                case SegmentVtx.PointTopology.OnVertex:
                     // nothing to do
                     break;
-                case SegmentVtx.pointTopology.OnEdge:
-                    add_edge_vtx(vtx);
+                case SegmentVtx.PointTopology.OnEdge:
+                    AddVtxOnEdge(vtx);
                     break;
-                case SegmentVtx.pointTopology.OnTriangle:
-                    add_face_vtx(vtx);
+                case SegmentVtx.PointTopology.OnTriangle:
+                    AddVtxOnFace(vtx);
                     break;
                 default:
                     throw new Exception($"Unexpected flow dealing with vertex of type: {vtx.type}.");
@@ -1193,163 +775,72 @@ namespace g3
             }
         }
 
-        void add_edge_vtx(SegmentVtx vtx)
+        void AddVtxOnEdge(SegmentVtx vtx)
         {
-            add_vtx_to(vtx, EdgeVertices);
+            TrackVertex(vtx, EdgeVertices);
         }
-        void add_face_vtx(SegmentVtx vtx)
+        void AddVtxOnFace(SegmentVtx vtx)
         {
-            add_vtx_to(vtx, FaceVertices);
+            TrackVertex(vtx, FaceVertices);
         }
 
-        private static void add_vtx_to(SegmentVtx vtx, Dictionary<int, List<SegmentVtx>> dic)
+        private static void TrackVertex(SegmentVtx vtx, Dictionary<int, List<SegmentVtx>> TrackingDictionary)
         {
-            if (dic.TryGetValue(vtx.elem_id, out List<SegmentVtx> l))
+            if (TrackingDictionary.TryGetValue(vtx.elem_id, out List<SegmentVtx> l))
             {
                 l.Add(vtx);
             }
             else
             {
                 l = new List<SegmentVtx>() { vtx };
-                dic[vtx.elem_id] = l;
+                TrackingDictionary[vtx.elem_id] = l;
             }
         }
-
-        
-
-        void add_poke_subfaces(int tid, ref DMesh3.PokeTriangleInfo pokeInfo)
+     
+        protected int FindEdgeContaining(ref Vector3d pointSought, ref Triangle3d triangleOfReference)
         {
-            int parent = get_parent(tid);
-            HashSet<int> subfaces = get_subfaces(parent);
-            if (tid != parent)
-                add_subface(subfaces, parent, tid);
-            add_subface(subfaces, parent, pokeInfo.new_t1);
-            add_subface(subfaces, parent, pokeInfo.new_t2);
-        }
-        void add_split_subfaces(Index2i origTris, ref DMesh3.EdgeSplitInfo splitInfo)
-        {
-            int parent_1 = get_parent(origTris.a);
-            HashSet<int> subfaces_1 = get_subfaces(parent_1);
-            if (origTris.a != parent_1)
-                add_subface(subfaces_1, parent_1, origTris.a);
-            add_subface(subfaces_1, parent_1, splitInfo.eNewT2);
-
-            if (origTris.b != DMesh3.InvalidID)
-            {
-                int parent_2 = get_parent(origTris.b);
-                HashSet<int> subfaces_2 = get_subfaces(parent_2);
-                if (origTris.b != parent_2)
-                    add_subface(subfaces_2, parent_2, origTris.b);
-                add_subface(subfaces_2, parent_2, splitInfo.eNewT3);
-            }
-        }
-        void add_regionop_subfaces(int parent, RegionOperator op)
-        {
-            HashSet<int> subfaces = get_subfaces(parent);
-            foreach (int tid in op.CurrentBaseTriangles)
-            {
-                if (tid != parent)
-                    add_subface(subfaces, parent, tid);
-            }
-        }
-
-
-        int get_parent(int tid)
-        {
-            int parent;
-            if (ParentFaces.TryGetValue(tid, out parent) == false)
-                parent = tid;
-            return parent;
-        }
-        HashSet<int> get_subfaces(int parent)
-        {
-            HashSet<int> subfaces;
-            if (SubFaces.TryGetValue(parent, out subfaces) == false)
-            {
-                subfaces = new HashSet<int>();
-                SubFaces[parent] = subfaces;
-            }
-            return subfaces;
-        }
-        void add_subface(HashSet<int> subfaces, int parent, int tid)
-        {
-            subfaces.Add(tid);
-            ParentFaces[tid] = parent;
-        }
-        List<int> get_all_baseface_tris(int base_tid)
-        {
-            List<int> faces = new List<int>(get_subfaces(base_tid));
-            faces.Add(base_tid);
-            return faces;
-        }
-
-        bool is_inserted_free_edge(int eid)
-        {
-            Index2i et = Target.GetEdgeT(eid);
-            if (get_parent(et.a) != get_parent(et.b))
-                return false;
-            // TODO need to check if we need to save edge AB to connect vertices!
-            throw new Exception("not done yet!");
-            return true;
-        }
-
-
-
-
-        protected int on_edge(ref Triangle3d tri, ref Vector3d v)
-        {
-            Segment3d s01 = new Segment3d(tri.V0, tri.V1);
-            if (s01.DistanceSquared(v) < VertexSnapTol * VertexSnapTol)
+            var compare = VertexSnapTol * VertexSnapTol;
+            var s01 = new Segment3d(triangleOfReference.V0, triangleOfReference.V1);
+            if (s01.DistanceSquared(pointSought) < compare)
                 return 0;
-            Segment3d s12 = new Segment3d(tri.V1, tri.V2);
-            if (s12.DistanceSquared(v) < VertexSnapTol * VertexSnapTol)
+            var s12 = new Segment3d(triangleOfReference.V1, triangleOfReference.V2);
+            if (s12.DistanceSquared(pointSought) < compare)
                 return 1;
-            Segment3d s20 = new Segment3d(tri.V2, tri.V0);
-            if (s20.DistanceSquared(v) < VertexSnapTol * VertexSnapTol)
+            var s20 = new Segment3d(triangleOfReference.V2, triangleOfReference.V0);
+            if (s20.DistanceSquared(pointSought) < compare)
                 return 2;
             return -1;
         }
-        protected int on_edge_eid(int tid, Vector3d v)
+
+        protected bool IsOnEdge(Vector3d pointSought, int candidateEdgeId)
         {
-            Index3i tv = Target.GetTriangle(tid);
-            Triangle3d tri = new Triangle3d();
-            Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
-            int eidx = on_edge(ref tri, ref v);
-            if (eidx < 0)
-                return DMesh3.InvalidID;
-            int eid = Target.FindEdge(tv[eidx], tv[(eidx + 1) % 3]);
-            Util.gDevAssert(eid != DMesh3.InvalidID);
-            return eid;
-        }
-        protected bool is_on_edge(int eid, Vector3d v)
-        {
-            Index2i ev = Target.GetEdgeV(eid);
-            Segment3d seg = new Segment3d(Target.GetVertex(ev.a), Target.GetVertex(ev.b));
-            return seg.DistanceSquared(v) < VertexSnapTol * VertexSnapTol;
+            var ev = Target.GetEdgeV(candidateEdgeId);
+            var seg = new Segment3d(Target.GetVertex(ev.a), Target.GetVertex(ev.b));
+            return seg.DistanceSquared(pointSought) < VertexSnapTol * VertexSnapTol;
         }
 
-        protected bool is_in_triangle(int tid, Vector3d v)
+        protected bool IsInTriangle(Vector3d pointSought, int candidateTriangleId)
         {
             Triangle3d tri = new Triangle3d();
-            Target.GetTriVertices(tid, ref tri.V0, ref tri.V1, ref tri.V2);
-            Vector3d bary = tri.BarycentricCoords(v);
-            return (bary.x >= 0 && bary.y >= 0 && bary.z >= 0
-                  && bary.x < 1 && bary.y <= 1 && bary.z <= 1);
-
+            Target.GetTriVertices(candidateTriangleId, ref tri.V0, ref tri.V1, ref tri.V2);
+            Vector3d bary = tri.BarycentricCoords(pointSought);
+            return
+                bary.x >= 0 && bary.y >= 0 && bary.z >= 0 &&
+                bary.x < 1 && bary.y <= 1 && bary.z <= 1;
         }
 
         /// <summary>
         /// find existing vertex at point, if it exists
         /// </summary>
-        protected int find_existing_vertex(Vector3d pt)
+        protected int FindExistingVertex(Vector3d coordinatesSought)
         {
-            return find_nearest_vertex(pt, VertexSnapTol);
+            return FindExistingVertex(coordinatesSought, VertexSnapTol);
         }
 
         /// <summary>
         /// find closest vertex, within searchRadius
         /// </summary>
-        protected int find_nearest_vertex(Vector3d pt, double searchRadius, int ignore_vid = -1)
+        protected int FindExistingVertex(Vector3d pt, double searchRadius, int ignore_vid = -1)
         {
             KeyValuePair<int, double> found = (ignore_vid == -1) 
                 ? PointHash.FindNearestInRadius(pt, searchRadius,

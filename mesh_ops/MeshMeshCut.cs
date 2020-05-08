@@ -57,7 +57,7 @@ namespace g3
                 // see MeshMeshCut.svg for visuals.
                 //
 
-                Debug.WriteLine(currSegment + " " + iProg);
+                Debug.WriteLine($"Progressive {iProg}: {currSegment}");
                 // Util.WriteDebugMesh(Target, "", iProg.ToString() );
                 iProg++;
                 if (currSegment.v0.type == SegmentVtx.PointTopology.OnVertex
@@ -65,7 +65,17 @@ namespace g3
                     currSegment.v1.type == SegmentVtx.PointTopology.OnVertex
                     )
                 {
-                    // nothing to do // Case VV
+                    // if vertices are sharing an edge, theres' nothing to do.
+                    // This is guaranteed on the first loop, because segments are coming from the 
+                    // same triangle, but after the mesh is modified, it could not be the case.
+                    // 
+                    // Particular complexity might occur when tolerances make verices snap to 
+                    // others and triangles could degenerate.
+                    //
+                    var edges0 = Target.VtxEdgesItr(currSegment.v0.elem_id).ToArray();
+                    var edges1 = Target.VtxEdgesItr(currSegment.v1.elem_id).ToArray();
+                    var sharedEdge = edges0.Intersect(edges1).FirstOrDefault();
+                    // todo: what do we do if no shared edge?
                     continue;
                 }
                 else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnTriangle, out SegmentVtx resultOnFace))
@@ -105,13 +115,26 @@ namespace g3
                 else if (currSegment.TryGetFirstEdgeSplit(Target, out SegmentVtx firstEdgeSplit))
                 {
                     // Case EE
-                    SplitEdge(firstEdgeSplit);
                     var other = currSegment.GetOpposite();
-                    SplitEdge(other);
+                    // if the two points fall on the same edge (within tolerances), we just cut the first
+                    var justone = (firstEdgeSplit.elem_id == other.elem_id)
+                        && CanSnap(firstEdgeSplit.v, other.v);
+                    SplitEdge(firstEdgeSplit);
+                    if (!justone)                  
+                        SplitEdge(other);
                 }
                 else
                     throw new Exception("Unexpected flow in MeshCut.");
             }
+        }
+
+        private bool CanSnap(Vector3d v1, Vector3d v2)
+        {
+            // todo... snapping needs to be reconsidered.
+            // we snap to an axis aligned grid, rather than just checking distances,
+            // then rely on equality to determine snap.
+            //
+            return v1.Distance(v2) <= VertexSnapTol;
         }
 
         private Queue<IntersectSegment> CreateQueue(List<DMeshAABBTree3.SegmentIntersection> segments)
@@ -207,7 +230,7 @@ namespace g3
             int new_v = -1;
             if (vertex.type == SegmentVtx.PointTopology.OnTriangle)
             {
-                Debug.WriteLine($"  Poke Tri {vertex.elem_id}");
+                Debug.WriteLine($"  Poke Tri {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 trisToReassign = new int[] { vertex.elem_id };
                 // no edge to reassign
 
@@ -224,7 +247,7 @@ namespace g3
             }
             else if (vertex.type == SegmentVtx.PointTopology.OnEdge)
             {
-                Debug.WriteLine($"  Split Edge {vertex.elem_id}");
+                Debug.WriteLine($"  Split Edge {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 var connectedTris = Target.GetEdgeT(vertex.elem_id);
                 trisToReassign = new int[] { connectedTris.a, connectedTris.b };
                 edgeToReassign = vertex.elem_id;
@@ -552,7 +575,7 @@ namespace g3
 
             public override string ToString()
             {
-                return $"{v0.type} -> {v1.type} ({v0.v.CommaDelimited} => {v1.v.CommaDelimited})";
+                return $"{v0.type} -> {v1.type} ({v0.v.CommaDelimited} => {v1.v.CommaDelimited}) Len: {v0.v.Distance(v1.v)}";
             }
 
             int otherVertex = -1;

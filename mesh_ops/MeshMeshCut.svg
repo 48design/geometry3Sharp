@@ -32,9 +32,9 @@
      inkscape:document-rotation="0"
      inkscape:current-layer="layer1"
      inkscape:document-units="mm"
-     inkscape:cy="598.12597"
-     inkscape:cx="592.36415"
-     inkscape:zoom="1.4142137"
+     inkscape:cy="770.78184"
+     inkscape:cx="752.41462"
+     inkscape:zoom="2.8284273"
      inkscape:pageshadow="2"
      inkscape:pageopacity="0.0"
      borderopacity="1.0"
@@ -757,7 +757,7 @@
          id="tspan2162-2-6"
          x="180"
          y="77.5"
-         style="stroke-width:0.264583">Degenerate cases</tspan></text>
+         style="stroke-width:0.264583">Degenerate and complex cases</tspan></text>
     <path
        sodipodi:nodetypes="cccc"
        inkscape:connector-curvature="0"
@@ -905,5 +905,187 @@
        id="path1189"
        d="m 202.5,140 7.5,5"
        style="fill:none;stroke:#000000;stroke-width:0.665001;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-variation-settings:normal;opacity:1;vector-effect:none;fill-opacity:1;stroke-miterlimit:4;stroke-dasharray:0.665001,0.665001;stroke-dashoffset:0;stop-color:#000000;stop-opacity:1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 180,185 17.5,-30 12.50001,25 z"
+       id="path1594-72-5-5-2"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cccc" />
+    <path
+       sodipodi:nodetypes="cc"
+       inkscape:connector-curvature="0"
+       id="path1766-6-0-6-3-8"
+       d="M 205,170 H 192.5"
+       style="fill:none;stroke:#000000;stroke-width:0.665001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.665001, 0.665001;stroke-dashoffset:0;stroke-opacity:1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.665001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.665001, 0.665001;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 195,175 v 7.5"
+       id="path1766-6-0-6-9-9-3"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.665001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.665001, 0.665001;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 192.5,170 2.5,5"
+       id="path1766-6-0-6-7-1-2"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:2.11667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="207.5"
+       y="155"
+       id="text1408-6-2-8-3-4-9-1-3-2-8-9"><tspan
+         sodipodi:role="line"
+         x="207.5"
+         y="155"
+         style="stroke-width:0.264583"
+         id="tspan1913-8-7-1-7-7-5" /><tspan
+         sodipodi:role="line"
+         x="207.5"
+         y="157.64584"
+         style="stroke-width:0.264583"
+         id="tspan1185-3">Even two vertices in one tri can result</tspan><tspan
+         id="tspan1300"
+         sodipodi:role="line"
+         x="207.5"
+         y="160.29167"
+         style="stroke-width:0.264583">in crossing over the split triangles, so </tspan><tspan
+         id="tspan1446"
+         sodipodi:role="line"
+         x="207.5"
+         y="162.93752"
+         style="stroke-width:0.264583">that the remaining segments involve</tspan><tspan
+         id="tspan1448"
+         sodipodi:role="line"
+         x="207.5"
+         y="165.58334"
+         style="stroke-width:0.264583">multiple triangles.</tspan></text>
+    <path
+       id="path1302"
+       d="m 180,185 c 0.83564,-0.89347 0.83564,-0.89347 0,0"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       id="path1304"
+       d="m 195,175 -15,10"
+       style="fill:none;stroke:#ff0000;stroke-width:0.265;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:0.265,0.265;stroke-dashoffset:0" />
+    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;stroke:#ff0000;stroke-width:0.264999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.264999, 0.264999;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 210,180 -15,-5"
+       id="path1304-7" />
+    <path
+       id="path1304-7-9"
+       d="M 197.5,155 195,175"
+       style="fill:none;stroke:#ff0000;stroke-width:0.264999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.264999, 0.264999;stroke-dashoffset:0;stroke-opacity:1"
+       sodipodi:nodetypes="cc" />
+    <circle
+       r="1.25"
+       cy="170.07018"
+       cx="195.52916"
+       id="path1444"
+       style="font-variation-settings:normal;opacity:1;vector-effect:none;fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:0.264999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.264999, 0.264999;stroke-dashoffset:0;stroke-opacity:1;stop-color:#000000;stop-opacity:1" />
+    <path
+       sodipodi:nodetypes="cccc"
+       id="path1450"
+       d="m 180,230 0,-40 40,0 z"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       id="path1456"
+       d="m 180,195 7.5,-5"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       id="path1458"
+       d="m 185,225 v -25 h 5 v 5 h 15"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       id="path1462"
+       d="m 187.5,212.5 v -5 h 5 v 5 z"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 190,197.5 v -5 h 5 v 5 z"
+       id="path1462-6" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 197.5,197.5 v -5 h 5 v 5 z"
+       id="path1462-8" />
+    <text
+       id="text1408-6-2-8-3-4-9-1-3-2-8-9-5"
+       y="192.5"
+       x="222.5"
+       style="font-style:normal;font-weight:normal;font-size:2.11667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       xml:space="preserve"><tspan
+         style="stroke-width:0.264583"
+         y="192.5"
+         x="222.5"
+         sodipodi:role="line"
+         id="tspan1448-3">Every shape in a region like this will </tspan><tspan
+         id="tspan1531"
+         style="stroke-width:0.264583"
+         y="195.14584"
+         x="222.5"
+         sodipodi:role="line">have to be computed independently, </tspan><tspan
+         id="tspan1533"
+         style="stroke-width:0.264583"
+         y="197.79167"
+         x="222.5"
+         sodipodi:role="line">considering regions to subtract.</tspan><tspan
+         id="tspan1535"
+         style="stroke-width:0.264583"
+         y="200.43752"
+         x="222.5"
+         sodipodi:role="line" /><tspan
+         id="tspan1537"
+         style="stroke-width:0.264583"
+         y="203.08334"
+         x="222.5"
+         sodipodi:role="line">As long as all the segments are there, </tspan><tspan
+         id="tspan1539"
+         style="stroke-width:0.264583"
+         y="205.72919"
+         x="222.5"
+         sodipodi:role="line">and don't overlap other edges</tspan><tspan
+         id="tspan1541"
+         style="stroke-width:0.264583"
+         y="208.37503"
+         x="222.5"
+         sodipodi:role="line">the mesh is ok.</tspan><tspan
+         id="tspan1562"
+         style="stroke-width:0.264583"
+         y="211.02086"
+         x="222.5"
+         sodipodi:role="line"></tspan><tspan
+         id="tspan1566"
+         style="stroke-width:0.264583"
+         y="213.6667"
+         x="222.5"
+         sodipodi:role="line">There are likely a number of points </tspan><tspan
+         id="tspan1568"
+         style="stroke-width:0.264583"
+         y="216.31253"
+         x="222.5"
+         sodipodi:role="line">along the shapes that are needed</tspan><tspan
+         id="tspan1570"
+         style="stroke-width:0.264583"
+         y="218.95837"
+         x="222.5"
+         sodipodi:role="line">to match up with the opposite shape</tspan><tspan
+         id="tspan1572"
+         style="stroke-width:0.264583"
+         y="221.60422"
+         x="222.5"
+         sodipodi:role="line">in case of booleans. E.g.: </tspan></text>
+    <circle
+       style="fill:#000000;stroke-width:0.0641088;stroke-miterlimit:4;stroke-dasharray:0.128218, 0.0641088;stroke-dashoffset:0;stop-color:#000000"
+       id="path1077-8-1"
+       cx="195"
+       cy="205"
+       r="0.60479999" />
+    <circle
+       r="0.60479999"
+       cy="221.05832"
+       cx="251.05832"
+       id="path1077-8-1-1"
+       style="fill:#000000;stroke-width:0.0641088;stroke-miterlimit:4;stroke-dasharray:0.128218, 0.0641088;stroke-dashoffset:0;stop-color:#000000" />
   </g>
 </svg>

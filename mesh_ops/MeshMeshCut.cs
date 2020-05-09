@@ -38,16 +38,29 @@ namespace g3
 
             Initialize();
             int iProg = 0;
-            var intersectionSegments = TargetSpatial.FindAllIntersections(CutSpatial);
+
+            var targetSpatial = new DMeshAABBTree3(Target, true);
+            var intersectionSegments = targetSpatial.FindAllIntersections(CutSpatial);
 
             // All intersection segments have to be created ahead of changing the shape
             // to allow the identification of triangle ids from the spatial
-            // when the shape changes we then look at the impacted points and update them.
+            // when the shape changes we then look at the impacted vertices and update them.
             //
-
-            // todo: review queue processing so that TT are processed at the very last
-
             var queue = CreateQueue(intersectionSegments.Segments);
+
+            
+
+            // some triangles in the queue cannot be computed with simple methods.
+            // each triangle with more than two segments to be cut across the face is at risk.
+            // (strictly a segment counts only when it's not aligned with others, but this 
+            // might be time consuming to compute).
+
+            // the plan is to remove all affected triangles from the original mesh and then 
+            // reconstruct them one at a time
+            // alternatively, we make the changes to the mesh that we know we can do
+            // then compute intersections again, this could be done with the submesh alone,
+            // to try and improve speed.
+            //
             while (queue.Count > 0)
             {
                 var currSegment = queue.Dequeue();
@@ -97,9 +110,8 @@ namespace g3
                     }
                     else
                     {
-                        // Case TT, after the poketriangle is now downgraded to VE or VT 
-                        // sent at the back of the queue, hopefully some other will happen 
-                        // more efficiently on the triangle, if needed
+                        // Case TT, after poketriangle this tri is now downgraded to VE or VT 
+                        // no more operations will be performed until we have a new set of intersections
                         //
                         queue.Enqueue(currSegment);
                     }
@@ -121,11 +133,18 @@ namespace g3
                     var justone = (firstEdgeSplit.elem_id == other.elem_id)
                         && CanSnap(firstEdgeSplit.v, other.v);
                     SplitEdge(firstEdgeSplit);
-                    if (!justone)                  
+                    if (!justone)
                         SplitEdge(other);
                 }
                 else
                     throw new Exception("Unexpected flow in MeshCut.");
+
+
+                // brutal proof of concept, recalc intersection at each cut
+                //
+                targetSpatial = new DMeshAABBTree3(Target, true);
+                intersectionSegments = targetSpatial.FindAllIntersections(CutSpatial);
+                queue = CreateQueue(intersectionSegments.Segments);
             }
         }
 
@@ -718,19 +737,6 @@ namespace g3
             SubFaces = new Dictionary<int, HashSet<int>>();
             ParentFaces = new Dictionary<int, int>();
             SegmentInsertVertices = new HashSet<int>();
-        }
-
-        private DMeshAABBTree3 _targetSpatial;
-        private DMeshAABBTree3 TargetSpatial
-        {
-            get
-            {
-                if (_targetSpatial == null)
-                {
-                    _targetSpatial = new DMeshAABBTree3(Target, true);
-                }
-                return _targetSpatial;
-            }
         }
 
         private DMeshAABBTree3 _cutSpatial;

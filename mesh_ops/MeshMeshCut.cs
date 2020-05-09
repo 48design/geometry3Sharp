@@ -67,7 +67,7 @@ namespace g3
                 {
                     // if vertices are sharing an edge, theres' nothing to do.
                     // This is guaranteed on the first loop, because segments are coming from the 
-                    // same triangle, but after the mesh is modified, it could not be the case.
+                    // same triangle, but after the mesh is modified, it could be that it is not.
                     // 
                     // Particular complexity might occur when tolerances make verices snap to 
                     // others and triangles could degenerate.
@@ -75,6 +75,7 @@ namespace g3
                     var edges0 = Target.VtxEdgesItr(currSegment.v0.elem_id).ToArray();
                     var edges1 = Target.VtxEdgesItr(currSegment.v1.elem_id).ToArray();
                     var sharedEdge = edges0.Intersect(edges1).FirstOrDefault();
+                    Debug.WriteLine($"  Shared: {sharedEdge}");
                     // todo: what do we do if no shared edge?
                     continue;
                 }
@@ -149,7 +150,7 @@ namespace g3
             return q;
         }
 
-        private IntersectSegment GetSegment(DMeshAABBTree3.SegmentIntersection isect, Dictionary<Vector3d, SegmentVtx> SegVtxMap)
+        private IntersectSegment GetSegment(DMeshAABBTree3.SegmentIntersection isect, Dictionary<Vector3d, SegmentVtx> segmentBag)
         {
             var segmentPoints = new Vector3dTuple2(isect.point0, isect.point1);
             IntersectSegment retValue = new IntersectSegment()
@@ -160,21 +161,25 @@ namespace g3
             {
                 var vertexCoordinatesSought = segmentPoints[currentPointIndex];
 
-                if (SegVtxMap.TryGetValue(vertexCoordinatesSought, out SegmentVtx sv))
+                if (segmentBag.TryGetValue(vertexCoordinatesSought, out SegmentVtx sv))
                 {
                     retValue[currentPointIndex] = sv;
                     continue;
                 }
-                sv = new SegmentVtx() { v = vertexCoordinatesSought };
+                sv = new SegmentVtx() {
+                    v = vertexCoordinatesSought,
+                    originalPosition = vertexCoordinatesSought
+                };
                 retValue[currentPointIndex] = sv;
+                segmentBag.Add(vertexCoordinatesSought, sv);
 
                 // this vtx is tol-equal to input mesh vtx
                 int existing_v = FindExistingVertex(vertexCoordinatesSought);
                 if (existing_v >= 0)
                 {
                     sv.initial_type = sv.type = SegmentVtx.PointTopology.OnVertex;
+                    sv.v = Target.GetVertex(existing_v);
                     sv.elem_id = existing_v;
-                    sv.vtx_id = existing_v;
                     continue;
                 }
 
@@ -221,7 +226,7 @@ namespace g3
 
             // because we're changing the mesh geometry, we will have to reassign some of the other 
             IEnumerable<int> trisToReassign = null;
-            int edgeToReassign = -1;
+            IEnumerable<int> edgesToReassign = null;
 
             IList<int> candidateNewEdges = null;
             IList<int> candidateNewTris = null;
@@ -232,7 +237,9 @@ namespace g3
             {
                 Debug.WriteLine($"  Poke Tri {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 trisToReassign = new int[] { vertex.elem_id };
-                // no edge to reassign
+                // if we reassign the edges of the triangle potential rounded snaps might improve
+                edgesToReassign = Target.GetTriEdges(vertex.elem_id).array;
+                
 
                 MeshResult result = Target.PokeTriangle(vertex.elem_id, out DMesh3.PokeTriangleInfo pokeInfo);
                 if (result != MeshResult.Ok)
@@ -240,8 +247,6 @@ namespace g3
                 new_v = pokeInfo.new_vid;
                 candidateNewTris = new int[] { pokeInfo.new_t1, pokeInfo.new_t2 };
                 candidateNewEdges = new int[] { pokeInfo.new_edges[0], pokeInfo.new_edges[1], pokeInfo.new_edges[2] };
-
-
                 // var newT = pokeInfo.
 
             }
@@ -250,7 +255,7 @@ namespace g3
                 Debug.WriteLine($"  Split Edge {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 var connectedTris = Target.GetEdgeT(vertex.elem_id);
                 trisToReassign = new int[] { connectedTris.a, connectedTris.b };
-                edgeToReassign = vertex.elem_id;
+                edgesToReassign = new[] { vertex.elem_id };
 
                 MeshResult result = Target.SplitEdge(vertex.elem_id, out DMesh3.EdgeSplitInfo splitInfo);
                 if (result != MeshResult.Ok)
@@ -261,17 +266,20 @@ namespace g3
             }
             // first we fix the current vertex
             vertex.type = SegmentVtx.PointTopology.OnVertex; // we've just changed the geometry so that the vertex is certainly there
-            vertex.vtx_id = vertex.elem_id = new_v;
+            vertex.elem_id = new_v;
             Target.SetVertex(new_v, vertex.v);
             AddPointHash(new_v, vertex.v);
 
             // then we check the ones that need to be reassigned.
             //
             List<SegmentVtx> toReassign = new List<SegmentVtx>();
-            if (edgeToReassign != -1)
+            foreach (var edgeToReassign in edgesToReassign)
             {
-                toReassign.AddRange(EdgeVertices[edgeToReassign]);
-                EdgeVertices.Remove(edgeToReassign);
+                if (EdgeVertices.TryGetValue(edgeToReassign, out var segmentsList))
+                {
+                    toReassign.AddRange(segmentsList);
+                    EdgeVertices.Remove(edgeToReassign);
+                }
             }
             foreach (var triId in trisToReassign)
             {
@@ -282,7 +290,7 @@ namespace g3
                 }               
             }
             // finally reassign
-            foreach (var reviewVertex in toReassign)
+            foreach (var reviewVertex in toReassign.Distinct())
             {
                 ReassignVertex(reviewVertex, candidateNewTris, candidateNewEdges);
             }
@@ -290,18 +298,26 @@ namespace g3
 
         private void ReassignVertex(SegmentVtx sv, IList<int> candidateNewTris, IList<int> candidateNewEdges)
         {
+            Debug.Write($"    Reassign: {sv}... ");
             // if already fixed, nothing to do
             if (sv.type == SegmentVtx.PointTopology.OnVertex)
+            {
+                Debug.WriteLine("");
                 return;
-
+            }
             // check if within tolerance of existing vtx
             int existing_v = FindExistingVertex(sv.v);
             if (existing_v >= 0)
             {
                 sv.type = SegmentVtx.PointTopology.OnVertex;
+                var tmp  = Target.GetVertex(existing_v);
+                if (tmp != sv.v)
+                {
+
+                }
+                sv.v = tmp;
                 sv.elem_id = existing_v;
-                sv.vtx_id = existing_v;
-                VIDToSegVtxMap[sv.vtx_id] = sv;
+                Debug.WriteLine(sv);
                 return;
             }
 
@@ -312,6 +328,7 @@ namespace g3
                     sv.type = SegmentVtx.PointTopology.OnEdge;
                     sv.elem_id = candidateNewEdges[j];
                     AddVtxOnEdge(sv);
+                    Debug.WriteLine(sv);
                     return;
                 }
             }
@@ -324,11 +341,13 @@ namespace g3
                     sv.type = SegmentVtx.PointTopology.OnTriangle;
                     sv.elem_id = candidateNewTris[j];
                     AddVtxOnFace(sv);
+                    Debug.WriteLine(sv);
                     return;
                 }
             }
             // Debug.WriteLine("Unchanged");
             Add_vtx(sv);
+            Debug.WriteLine(sv);
         }
 
         private void SplitEdge(SegmentVtx edgeInfo)
@@ -508,6 +527,8 @@ namespace g3
 
         class SegmentVtx
         {
+            internal bool Snapped => originalPosition != v;
+
             internal enum PointTopology
             {
                 Undefined = -1,
@@ -516,30 +537,43 @@ namespace g3
                 OnTriangle = 2
             }
 
+            internal string CoordinateDebug
+            {
+                get
+                {
+                    if (Snapped)
+                        return $"{v.CommaDelimited} [was: {originalPosition.CommaDelimited}]";
+                    return v.CommaDelimited;
+                }
+            }
+
+            public override string ToString()
+            {
+                return $"{type} {elem_id}: {CoordinateDebug}";
+            }
+
+
+            public Vector3d originalPosition;
+            public PointTopology initial_type = PointTopology.Undefined;
+
             public Vector3d v;
             public PointTopology type = PointTopology.Undefined;
-            public PointTopology initial_type = PointTopology.Undefined;
-            public int vtx_id = DMesh3.InvalidID;
+            
             public int elem_id = DMesh3.InvalidID;
 
             [Conditional("DEBUG")]
             public void DebugInfo(string varName)
             {
                 Debug.WriteLine($"  {varName}");
+                Debug.WriteLine($"    type: {type}");
                 Debug.WriteLine($"    v: {v.CommaDelimited}");
-                if (type == PointTopology.OnVertex && vtx_id == -1)
-                    Debug.WriteLine($"    type: {type}");
+                if (Snapped)
+                    Debug.WriteLine($"    originalPosition: {originalPosition.CommaDelimited}");
                 if (initial_type != type)
                     Debug.WriteLine($"    initial_type: {initial_type} **");
-                if (vtx_id != -1)
-                    Debug.WriteLine($"    v_id: {vtx_id}");
-                if (elem_id != vtx_id)
-                    Debug.WriteLine($"    elm_id: {elem_id}");
+                Debug.WriteLine($"    elm_id: {elem_id}");
             }
         }
-
-        Dictionary<int, SegmentVtx> VIDToSegVtxMap;
-
 
         /// segment vertices in each triangle that we still have to insert
         /// the key is the triangle id
@@ -575,7 +609,7 @@ namespace g3
 
             public override string ToString()
             {
-                return $"{v0.type} -> {v1.type} ({v0.v.CommaDelimited} => {v1.v.CommaDelimited}) Len: {v0.v.Distance(v1.v)}";
+                return $"{v0.type} -> {v1.type} ({v0.CoordinateDebug} => {v1.CoordinateDebug}) Len: {v0.v.Distance(v1.v)}";
             }
 
             int otherVertex = -1;
@@ -684,7 +718,6 @@ namespace g3
             SubFaces = new Dictionary<int, HashSet<int>>();
             ParentFaces = new Dictionary<int, int>();
             SegmentInsertVertices = new HashSet<int>();
-            VIDToSegVtxMap = new Dictionary<int, SegmentVtx>();
         }
 
         private DMeshAABBTree3 _targetSpatial;
@@ -824,6 +857,7 @@ namespace g3
         {
             var compare = VertexSnapTol * VertexSnapTol;
             var s01 = new Segment3d(triangleOfReference.V0, triangleOfReference.V1);
+            // var p01 = s01.NearestPoint(pointSought);
             if (s01.DistanceSquared(pointSought) < compare)
                 return 0;
             var s12 = new Segment3d(triangleOfReference.V1, triangleOfReference.V2);

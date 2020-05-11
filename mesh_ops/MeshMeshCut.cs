@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml.Serialization;
 
 namespace g3
 {
@@ -48,6 +49,14 @@ namespace g3
             //
             var queue = CreateQueue(intersectionSegments.Segments);
 
+            var perTri = queue.GroupBy(x => x.base_tid);
+            foreach (var group in perTri)
+            {
+                if (group.Count() > 2)
+                {
+                    var profile = getProfile(group);
+                }
+            }
             
 
             // some triangles in the queue cannot be computed with simple methods.
@@ -61,91 +70,264 @@ namespace g3
             // then compute intersections again, this could be done with the submesh alone,
             // to try and improve speed.
             //
-            while (queue.Count > 0)
+            //while (queue.Count > 0)
+            //{
+            //    var currSegment = queue.Dequeue();
+            //    // Util.WriteDebugMesh(Target, "", "target");
+            //    // first we need to understand what type of points the segment spans 
+            //    // e.g. From triangle vertex to a point on an edge.
+            //    // see MeshMeshCut.svg for visuals.
+            //    //
+
+            //    Debug.WriteLine($"Progressive {iProg}: {currSegment}");
+            //    // Util.WriteDebugMesh(Target, "", iProg.ToString() );
+            //    iProg++;
+            //    ProcessSegmentSimplistic(currSegment);
+
+            //    // brutal proof of concept, recalc intersection at each cut
+            //    //
+            //    targetSpatial = new DMeshAABBTree3(Target, true);
+            //    intersectionSegments = targetSpatial.FindAllIntersections(CutSpatial);
+            //    queue = CreateQueue(intersectionSegments.Segments);
+            //}
+        }
+
+        class PlanarSegmentChain : LinkedList<PlanarIntersectSegment>
+        {
+            public PlanarSegmentChain(PlanarIntersectSegment x)
             {
-                var currSegment = queue.Dequeue();
-                // Util.WriteDebugMesh(Target, "", "target");
-                // first we need to understand what type of points the segment spans 
-                // e.g. From triangle vertex to a point on an edge.
-                // see MeshMeshCut.svg for visuals.
+                base.AddFirst(x);
+            }
+
+            PlanarIntersectPoint LastPoint => this.Last().v1;
+            PlanarIntersectPoint FirstPoint => this.First().v0;
+
+
+            internal bool Expand(List<PlanarIntersectSegment> collection, 
+                Dictionary<PlanarIntersectPoint, List<int>> v0lookup, 
+                Dictionary<PlanarIntersectPoint, List<int>> v1lookup, 
+                bool[] segmentSorted)
+            {
+                // assuming v0 and v1 are always in the right order
+                
+                while (v1lookup.TryGetValue(FirstPoint, out var found))
+                {
+                    var lastOfIndices = found.Last();
+                    found.RemoveAt(found.Count - 1);
+                    segmentSorted[lastOfIndices] = true;
+                    var toadd = collection[lastOfIndices];
+                    AddFirst(toadd);
+                }
+                
+                while (v0lookup.TryGetValue(LastPoint, out var found))
+                {
+                    if (!found.Any())
+                        throw new Exception("Unexpected flow");
+                    var lastOfIndices = found.Last();
+                    found.RemoveAt(found.Count - 1);
+                    segmentSorted[lastOfIndices] = true;
+                    var toadd = collection[lastOfIndices];
+                    AddLast(toadd);
+                }
+
+                return true;
+            }
+        }
+
+        static private PlanarIntersectPoint GetPoint(SegmentVtx segInMesh, Vector3d ctroid, Quaterniond toPlane, Dictionary<SegmentVtx, PlanarIntersectPoint> bag)
+        {
+            if (bag != null && bag.TryGetValue(segInMesh, out var value))
+            {
+                return value;
+            }
+            var tmp = new PlanarIntersectPoint(segInMesh, ctroid, toPlane);
+            bag.Add(segInMesh, tmp);
+            return tmp;
+        }
+
+        private object getProfile(IGrouping<int, IntersectSegment> segmentsOnTriangle)
+        {
+            var tid = segmentsOnTriangle.Key;
+
+            var ctroid = Target.GetTriCentroid(tid);
+            var nrm = Target.GetTriNormal(tid);
+            var toPlane = new Quaterniond(nrm, new Vector3d(0, 0, 1));
+
+            
+            var bag = new Dictionary<SegmentVtx, PlanarIntersectPoint>();
+            var planarSegs = new List<PlanarIntersectSegment>(segmentsOnTriangle.Count());
+            var DicV0 = new Dictionary<PlanarIntersectPoint, List<int>>();
+            var DicV1 = new Dictionary<PlanarIntersectPoint, List<int>>();
+            foreach (var segInMesh in segmentsOnTriangle)
+            {
+                var segInPlane = new PlanarIntersectSegment(segInMesh, ctroid, toPlane, bag);
+
+                // lookup dicts for points in segment
+                AddLookup(segInPlane.v0, DicV0, planarSegs.Count);
+                AddLookup(segInPlane.v1, DicV1, planarSegs.Count);
+                planarSegs.Add(segInPlane);               
+            }
+            foreach (var item in planarSegs)
+            {
+                Debug.WriteLine(item);
+            }
+
+            List<PlanarSegmentChain> chains = new List<PlanarSegmentChain>();
+
+            var SegmentSorted = new bool[planarSegs.Count];
+            for (int i = 0; i < SegmentSorted.Length; i++)
+            {
+                if (!SegmentSorted[i])
+                {
+                    SegmentSorted[i] = true;
+                    var p = new PlanarSegmentChain(planarSegs[i]);
+                    p.Expand(planarSegs, DicV0, DicV1, SegmentSorted);
+                    chains.Add(p);
+                }
+            }
+
+            // each chain will have to be finalised, 
+            // finding if it needs to add a vertex from the triangle
+            //
+
+
+            // now convert all the chains to a tree
+            //
+
+
+
+            throw new NotImplementedException(); // I'm bored!
+
+            return null;
+        }
+
+        private void AddLookup(PlanarIntersectPoint v0, Dictionary<PlanarIntersectPoint, List<int>> dicPointToSegment, int index)
+        {
+            if (dicPointToSegment.TryGetValue(v0, out var found))
+            {
+                found.Add(index);
+                return;
+            }
+            dicPointToSegment.Add(v0, new List<int>() { index });
+        }
+
+        class PlanarIntersectPoint
+        {
+            SegmentVtx.PointTopology type;
+            int elem_id;
+            Vector2d v;
+
+            public override string ToString()
+            {
+                return $"{type} {elem_id} {v}";
+            }
+
+            public PlanarIntersectPoint(SegmentVtx v0, Vector3d ctroid, Quaterniond toPlane)
+            {
+                type = v0.type;
+                elem_id = v0.elem_id;
+                var delta = v0.v - ctroid;
+                var onPlane = toPlane * delta;
+                v = new Vector2d(onPlane.x, onPlane.y);
+            }
+        }
+
+        class PlanarIntersectSegment
+        {
+            internal PlanarIntersectPoint v0;
+            internal PlanarIntersectPoint v1;
+            
+
+            public override string ToString()
+            {
+                return $"From: {v0} To: {v1}";
+            }
+
+            public PlanarIntersectSegment(IntersectSegment segInMesh, Vector3d ctroid, Quaterniond toPlane, Dictionary<SegmentVtx, PlanarIntersectPoint> bag)
+            {
+                v0 = GetPoint(segInMesh.v0, ctroid, toPlane, bag);
+                v1 = GetPoint(segInMesh.v1, ctroid, toPlane, bag);
+            }
+
+            
+
+        }
+
+
+
+        // cases of Type TT Should never be dealt with here...
+        private bool ProcessSegmentSimplistic(IntersectSegment currSegment)
+        {
+
+            if (currSegment.v0.type == SegmentVtx.PointTopology.OnVertex
+                &&
+                currSegment.v1.type == SegmentVtx.PointTopology.OnVertex
+                )
+            {
+                // if vertices are sharing an edge, theres' nothing to do.
+                // This is guaranteed on the first loop, because segments are coming from the 
+                // same triangle, but after the mesh is modified, it could be that it is not.
+                // 
+                // Particular complexity might occur when tolerances make verices snap to 
+                // others and triangles could degenerate.
                 //
+                var edges0 = Target.VtxEdgesItr(currSegment.v0.elem_id).ToArray();
+                var edges1 = Target.VtxEdgesItr(currSegment.v1.elem_id).ToArray();
+                var sharedEdge = edges0.Intersect(edges1).FirstOrDefault();
+                Debug.WriteLine($"  Shared: {sharedEdge}");
+                // todo: what do we do if no shared edge?
+                
+            }
+            else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnTriangle, out SegmentVtx resultOnFace))
+            {
+                // Cases TV / TE / TT
 
-                Debug.WriteLine($"Progressive {iProg}: {currSegment}");
-                // Util.WriteDebugMesh(Target, "", iProg.ToString() );
-                iProg++;
-                if (currSegment.v0.type == SegmentVtx.PointTopology.OnVertex
-                    &&
-                    currSegment.v1.type == SegmentVtx.PointTopology.OnVertex
-                    )
-                {
-                    // if vertices are sharing an edge, theres' nothing to do.
-                    // This is guaranteed on the first loop, because segments are coming from the 
-                    // same triangle, but after the mesh is modified, it could be that it is not.
-                    // 
-                    // Particular complexity might occur when tolerances make verices snap to 
-                    // others and triangles could degenerate.
-                    //
-                    var edges0 = Target.VtxEdgesItr(currSegment.v0.elem_id).ToArray();
-                    var edges1 = Target.VtxEdgesItr(currSegment.v1.elem_id).ToArray();
-                    var sharedEdge = edges0.Intersect(edges1).FirstOrDefault();
-                    Debug.WriteLine($"  Shared: {sharedEdge}");
-                    // todo: what do we do if no shared edge?
-                    continue;
-                }
-                else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnTriangle, out SegmentVtx resultOnFace))
-                {
-                    // Cases TV / TE / TT
+                // poke tri at point.
+                PokeTriangle(resultOnFace);
 
-                    // poke tri at point.
-                    PokeTriangle(resultOnFace);
-
-                    var other = currSegment.GetOpposite();
-                    if (other.type == SegmentVtx.PointTopology.OnVertex)
-                        continue; // TV
-                    if (other.type == SegmentVtx.PointTopology.OnEdge)
-                    {
-                        // Case TE
-                        // split edge B
-                        SplitEdge(other);
-                    }
-                    else
-                    {
-                        // Case TT, after poketriangle this tri is now downgraded to VE or VT 
-                        // no more operations will be performed until we have a new set of intersections
-                        //
-                        queue.Enqueue(currSegment);
-                    }
-                }
-                else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnVertex, out _))
+                var other = currSegment.GetOpposite();
+                if (other.type == SegmentVtx.PointTopology.OnVertex)
+                    return true; // TV
+                else if (other.type == SegmentVtx.PointTopology.OnEdge)
                 {
-                    // case VE
-                    // if one point is on a vertex:
-                    // vertex does not need any action, 
-                    // the other edge needs to be split
-                    var other = currSegment.GetOpposite();
+                    // Case TE
+                    // split edge B
                     SplitEdge(other);
                 }
-                else if (currSegment.TryGetFirstEdgeSplit(Target, out SegmentVtx firstEdgeSplit))
-                {
-                    // Case EE
-                    var other = currSegment.GetOpposite();
-                    // if the two points fall on the same edge (within tolerances), we just cut the first
-                    var justone = (firstEdgeSplit.elem_id == other.elem_id)
-                        && CanSnap(firstEdgeSplit.v, other.v);
-                    SplitEdge(firstEdgeSplit);
-                    if (!justone)
-                        SplitEdge(other);
-                }
                 else
-                    throw new Exception("Unexpected flow in MeshCut.");
-
-
-                // brutal proof of concept, recalc intersection at each cut
-                //
-                targetSpatial = new DMeshAABBTree3(Target, true);
-                intersectionSegments = targetSpatial.FindAllIntersections(CutSpatial);
-                queue = CreateQueue(intersectionSegments.Segments);
+                {
+                    // Case TT, after poketriangle this tri is now downgraded to VE or VT 
+                    // no more operations will be performed until we have a new set of intersections
+                    //
+                    return false;
+                }
             }
+            else if (currSegment.TryGetVertex(SegmentVtx.PointTopology.OnVertex, out _))
+            {
+                // case VE
+                // if one point is on a vertex:
+                // vertex does not need any action, 
+                // the other edge needs to be split
+                var other = currSegment.GetOpposite();
+                SplitEdge(other);
+                return true;
+            }
+            else if (currSegment.TryGetFirstEdgeSplit(Target, out SegmentVtx firstEdgeSplit))
+            {
+                // Case EE
+                var other = currSegment.GetOpposite();
+                // if the two points fall on the same edge (within tolerances), we just cut the first
+                var justone = (firstEdgeSplit.elem_id == other.elem_id)
+                    && CanSnap(firstEdgeSplit.v, other.v);
+                SplitEdge(firstEdgeSplit);
+                if (!justone)
+                    SplitEdge(other);
+                return true;
+            }
+            else
+                throw new Exception("Unexpected flow in MeshCut.");
+            return true;
+
         }
 
         private bool CanSnap(Vector3d v1, Vector3d v2)
@@ -157,14 +339,14 @@ namespace g3
             return v1.Distance(v2) <= VertexSnapTol;
         }
 
-        private Queue<IntersectSegment> CreateQueue(List<DMeshAABBTree3.SegmentIntersection> segments)
+        private IEnumerable<IntersectSegment> CreateQueue(List<DMeshAABBTree3.SegmentIntersection> segments)
         {
-            var q = new Queue<IntersectSegment>(segments.Count);
+            var q = new List<IntersectSegment>(segments.Count);
             Dictionary<Vector3d, SegmentVtx> SegVtxMap = new Dictionary<Vector3d, SegmentVtx>();
             foreach (var segment in segments)
             {
                 var currSegment = GetSegment(segment, SegVtxMap);
-                q.Enqueue(currSegment);
+                q.Add(currSegment);
             }
             return q;
         }
@@ -245,7 +427,7 @@ namespace g3
 
             // because we're changing the mesh geometry, we will have to reassign some of the other 
             IEnumerable<int> trisToReassign = null;
-            IEnumerable<int> edgesToReassign = null;
+            int edgeToReassign = -1;
 
             IList<int> candidateNewEdges = null;
             IList<int> candidateNewTris = null;
@@ -256,9 +438,8 @@ namespace g3
             {
                 Debug.WriteLine($"  Poke Tri {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 trisToReassign = new int[] { vertex.elem_id };
-                // if we reassign the edges of the triangle potential rounded snaps might improve
-                edgesToReassign = Target.GetTriEdges(vertex.elem_id).array;
-                
+                // no edge to reassign
+
 
                 MeshResult result = Target.PokeTriangle(vertex.elem_id, out DMesh3.PokeTriangleInfo pokeInfo);
                 if (result != MeshResult.Ok)
@@ -274,7 +455,7 @@ namespace g3
                 Debug.WriteLine($"  Split Edge {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 var connectedTris = Target.GetEdgeT(vertex.elem_id);
                 trisToReassign = new int[] { connectedTris.a, connectedTris.b };
-                edgesToReassign = new[] { vertex.elem_id };
+                edgeToReassign = vertex.elem_id;
 
                 MeshResult result = Target.SplitEdge(vertex.elem_id, out DMesh3.EdgeSplitInfo splitInfo);
                 if (result != MeshResult.Ok)
@@ -292,7 +473,7 @@ namespace g3
             // then we check the ones that need to be reassigned.
             //
             List<SegmentVtx> toReassign = new List<SegmentVtx>();
-            foreach (var edgeToReassign in edgesToReassign)
+            if (edgeToReassign != -1)
             {
                 if (EdgeVertices.TryGetValue(edgeToReassign, out var segmentsList))
                 {

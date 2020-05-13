@@ -107,6 +107,12 @@ namespace g3
             Timestamp++;
         }
 
+        public void InsertVetex(int position, Vector2d v)
+        {
+            vertices.Insert(position, v);
+            Timestamp++;
+        }
+
 
         public void SetVertices(List<Vector2d> newVertices, bool bTakeOwnership)
         {
@@ -405,8 +411,61 @@ namespace g3
 			return v;
 		}
 
+        public class QualifiedVector2DIntersection
+        {
+            public Vector2d IntersPoint;
+            /// index of the starting point of the vertex
+            /// intersection is between vertex[i0] and vertex[(i0+1)%vertexcount]
+            public int i0;
+            /// index of the starting point of the vertex
+            /// intersection is between o.vertex[i1] and o.vertex[(i1+1)%o.vertexcount]
+            public int i1;
+            
+            public QualifiedVector2DIntersection(Vector2d point, int i, int j)
+            {
+                IntersPoint = point;
+                i0 = i;
+                i1 = j;
+            }
+        }
 
-		public Segment2d Segment(int iSegment)
+        /// <summary>
+        /// finds intersections and provides indices of intersecting segments in the two polygons
+        /// </summary>
+        public List<QualifiedVector2DIntersection> FindQualifiedIntersections(Polygon2d o, double precision, bool omitOverlaps)
+        {
+            List<QualifiedVector2DIntersection> v = new List<QualifiedVector2DIntersection>();
+            if (!this.GetBounds().Intersects(o.GetBounds()))
+                return v;
+
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                Segment2d seg = new Segment2d(vertices[i], vertices[(i + 1) % vertices.Count]);
+                for (int j = 0; j < o.vertices.Count; j++)
+                {
+                    Segment2d oseg = new Segment2d(o.vertices[j], o.vertices[(j + 1) % o.vertices.Count]);
+                    // this computes test twice for intersections, but seg.intersects doesn't
+                    // create any new objects so it should be much faster for majority of segments (should profile!)
+                    if (seg.Intersects(oseg, intervalThresh: precision))
+                    {
+                        IntrSegment2Segment2 intr = new IntrSegment2Segment2(seg, oseg);
+                        intr.IntervalThreshold = precision;
+                        if (intr.Find())
+                        {
+                            if (omitOverlaps && intr.Quantity == 2)
+                                continue;
+                            v.Add(new QualifiedVector2DIntersection(intr.Point0, i, j));
+                            if (intr.Quantity == 2)
+                                v.Add(new QualifiedVector2DIntersection(intr.Point1, i, j));
+                        }
+                    }
+                }
+            }
+            return v;
+        }
+
+
+        public Segment2d Segment(int iSegment)
 		{
 			return new Segment2d(vertices[iSegment], vertices[(iSegment + 1) % vertices.Count]);
 		}

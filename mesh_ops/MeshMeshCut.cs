@@ -94,13 +94,16 @@ namespace g3
 
         class PlanarSegmentChain : LinkedList<PlanarIntersectSegment>
         {
-            public PlanarSegmentChain(PlanarIntersectSegment x)
+            double VertexSnapTol;
+
+            public PlanarSegmentChain(PlanarIntersectSegment x, double vertexSnapTol)
             {
+                VertexSnapTol = vertexSnapTol;
                 base.AddFirst(x);
             }
 
-            PlanarIntersectPoint LastPoint => this.Last().v1;
-            PlanarIntersectPoint FirstPoint => this.First().v0;
+            internal PlanarIntersectPoint LastPoint => this.Last().v1;
+            internal PlanarIntersectPoint FirstPoint => this.First().v0;
 
 
             internal bool Expand(List<PlanarIntersectSegment> collection, 
@@ -131,6 +134,80 @@ namespace g3
                 }
 
                 return true;
+            }
+
+            internal HierarchicalPolygon ToPolygon()
+            {
+                var lst = new List<Vector2d>(Count + 1);
+                lst.Add(FirstPoint.v);
+                foreach (var planar in this)
+                {
+                    lst.Add(planar.v1.v);
+                };
+                return new HierarchicalPolygon(lst, VertexSnapTol);
+            }
+        }
+
+        class HierarchicalPolygon
+        {
+            double VertexSnapTol;
+
+            internal bool Contains(HierarchicalPolygon other)
+            {
+                var pnt = other.shape.Vertices[0];
+                return shape.WindingIntegral(pnt) > 0.9;                
+            }
+
+            internal Polygon2d shape;
+            internal HierarchicalPolygon parent;
+            internal List<HierarchicalPolygon> children = new List<HierarchicalPolygon>();
+
+            internal double Area { get => shape.Area; }
+
+            public HierarchicalPolygon(List<Vector2d> lst, double vertexSnapTol)
+            {
+                VertexSnapTol = vertexSnapTol;
+                shape = new Polygon2d(lst);
+            }
+
+            internal void AddChild(HierarchicalPolygon child)
+            {
+                child.parent = this;
+                children.Add(child);
+            }
+
+            internal void AddToMesh(DMesh3 m)
+            {
+                TriangulatedPolygonGenerator tg = new TriangulatedPolygonGenerator();
+                tg.Polygon = new GeneralPolygon2d(shape);
+                foreach (var child in children)
+                {
+                    var cp = child.shape.Duplicate();
+                    Debug.WriteLine($"Shape clockwise: {child.shape.IsClockwise}");
+                    if (cp.IsClockwise)
+                        cp.Reverse();
+                    tg.Polygon.AddHole(cp, false, true, VertexSnapTol);
+                }
+                tg.Generate();
+                var thisProfileMesh = tg.MakeDMesh();
+
+                
+
+                MeshEditor me = new MeshEditor(m);
+                me.AppendMesh(thisProfileMesh);
+                
+                foreach (var child in children)
+                {
+                    child.AddToMesh(m);
+                }
+
+                Util.WriteDebugMesh(m, "", "l2");
+            }
+
+            internal void MakeCw()
+            {
+                if (!shape.IsClockwise)
+                    shape.Reverse();
             }
         }
 
@@ -180,7 +257,7 @@ namespace g3
                 if (!SegmentSorted[i])
                 {
                     SegmentSorted[i] = true;
-                    var p = new PlanarSegmentChain(planarSegs[i]);
+                    var p = new PlanarSegmentChain(planarSegs[i], VertexSnapTol);
                     p.Expand(planarSegs, DicV0, DicV1, SegmentSorted);
                     chains.Add(p);
                 }
@@ -189,16 +266,72 @@ namespace g3
             // each chain will have to be finalised, 
             // finding if it needs to add a vertex from the triangle
             //
-
+            foreach (var chain in chains)
+            {
+                if (chain.First().v0.topo == SegmentVtx.PointTopology.OnTriangle ||
+                    chain.Last().v1.topo == SegmentVtx.PointTopology.OnTriangle)
+                    continue;
+                var firstEdge = getEdge(chain.FirstPoint, tid);
+                var lastEdge = getEdge(chain.LastPoint, tid);
+                if (firstEdge == lastEdge)
+                    continue;
+                Debug.WriteLine("Needs handling");
+            }
 
             // now convert all the chains to a tree
             //
+            // Sort the chains by area, then from the smallest find the 
+            // smallest of the containing to identify the direct parent.
+            //
+            var hp = new List<HierarchicalPolygon>();
+            var pList = chains.Select(x => x.ToPolygon()).OrderBy(g => g.Area).ToArray();
+            for (int i = 0; i < pList.Length; i++)
+            {
+                for (int j = i + 1; j < pList.Length; j++)
+                {
+                    if (pList[j].Contains(pList[i]))
+                    {
+                        pList[j].AddChild(pList[i]);
+                        break;
+                    }
+                }
+                if (pList[i].parent == null)
+                {
+                    hp.Add(pList[i]);
+                }
+            }
 
-
-
+            // make the base triangle
+            //
+            var tri = Target.GetTriangle(tid);
+            List<Vector2d> triPoints = new List<Vector2d>(3);
+            for (int pointIndex = tri.array.Length - 1; pointIndex >= 0; pointIndex--)
+            {
+                int vIndex = tri.array[pointIndex];
+                triPoints.Add(PlanarIntersectPoint.ProjectPoint(Target.GetVertex(vIndex), ctroid, toPlane));
+            }
+            HierarchicalPolygon baseTriangle = new HierarchicalPolygon(triPoints, VertexSnapTol);
+            baseTriangle.MakeCw();
+            baseTriangle.children = hp;
+            DMesh3 m = new DMesh3(false, false, false, false);
+            baseTriangle.AddToMesh(m);
+            Util.WriteDebugMesh(m, "", "singletri");
             throw new NotImplementedException(); // I'm bored!
 
+            // todo: still have to put the mesh back to the original position 
+            // and merge with the original one.
+
             return null;
+        }
+
+        private int getEdge(PlanarIntersectPoint v0, int tid)
+        {
+            if (v0.topo == SegmentVtx.PointTopology.OnEdge)
+                return v0.elem_id;
+            
+            var vs = Target.GetTriangle(tid);
+            var edges = Target.GetTriEdges(tid);
+            return -1;
         }
 
         private void AddLookup(PlanarIntersectPoint v0, Dictionary<PlanarIntersectPoint, List<int>> dicPointToSegment, int index)
@@ -213,22 +346,29 @@ namespace g3
 
         class PlanarIntersectPoint
         {
-            SegmentVtx.PointTopology type;
-            int elem_id;
-            Vector2d v;
+            internal SegmentVtx.PointTopology topo;
+            internal int elem_id;
+            internal Vector2d v;
 
             public override string ToString()
             {
-                return $"{type} {elem_id} {v}";
+                return $"{topo} {elem_id} {v}";
             }
 
             public PlanarIntersectPoint(SegmentVtx v0, Vector3d ctroid, Quaterniond toPlane)
             {
-                type = v0.type;
+                topo = v0.topo;
                 elem_id = v0.elem_id;
-                var delta = v0.v - ctroid;
+                var inv = v0.v;
+                Vector2d t = ProjectPoint(inv, ctroid, toPlane);
+                v = t;
+            }
+
+            internal static Vector2d ProjectPoint(Vector3d vertex, Vector3d ctroid, Quaterniond toPlane)
+            {
+                var delta = vertex - ctroid;
                 var onPlane = toPlane * delta;
-                v = new Vector2d(onPlane.x, onPlane.y);
+                return new Vector2d(onPlane.x, onPlane.y);
             }
         }
 
@@ -259,9 +399,9 @@ namespace g3
         private bool ProcessSegmentSimplistic(IntersectSegment currSegment)
         {
 
-            if (currSegment.v0.type == SegmentVtx.PointTopology.OnVertex
+            if (currSegment.v0.topo == SegmentVtx.PointTopology.OnVertex
                 &&
-                currSegment.v1.type == SegmentVtx.PointTopology.OnVertex
+                currSegment.v1.topo == SegmentVtx.PointTopology.OnVertex
                 )
             {
                 // if vertices are sharing an edge, theres' nothing to do.
@@ -286,9 +426,9 @@ namespace g3
                 PokeTriangle(resultOnFace);
 
                 var other = currSegment.GetOpposite();
-                if (other.type == SegmentVtx.PointTopology.OnVertex)
+                if (other.topo == SegmentVtx.PointTopology.OnVertex)
                     return true; // TV
-                else if (other.type == SegmentVtx.PointTopology.OnEdge)
+                else if (other.topo == SegmentVtx.PointTopology.OnEdge)
                 {
                     // Case TE
                     // split edge B
@@ -378,7 +518,7 @@ namespace g3
                 int existing_v = FindExistingVertex(vertexCoordinatesSought);
                 if (existing_v >= 0)
                 {
-                    sv.initial_type = sv.type = SegmentVtx.PointTopology.OnVertex;
+                    sv.initial_type = sv.topo = SegmentVtx.PointTopology.OnVertex;
                     sv.v = Target.GetVertex(existing_v);
                     sv.elem_id = existing_v;
                     continue;
@@ -392,7 +532,7 @@ namespace g3
                 int on_edge_i = FindEdgeContaining(ref vertexCoordinatesSought, ref tri);
                 if (on_edge_i >= 0)
                 {
-                    sv.initial_type = sv.type = SegmentVtx.PointTopology.OnEdge;
+                    sv.initial_type = sv.topo = SegmentVtx.PointTopology.OnEdge;
                     sv.elem_id = Target.FindEdge(tv[on_edge_i], tv[(on_edge_i + 1) % 3]);
                     Util.gDevAssert(sv.elem_id != DMesh3.InvalidID);
                     AddVtxOnEdge(sv);
@@ -400,7 +540,7 @@ namespace g3
                 }
 
                 // otherwise contained in input mesh face
-                sv.initial_type = sv.type = SegmentVtx.PointTopology.OnTriangle;
+                sv.initial_type = sv.topo = SegmentVtx.PointTopology.OnTriangle;
                 sv.elem_id = isect.t0;
                 AddVtxOnFace(sv);
             }
@@ -422,7 +562,7 @@ namespace g3
 
         private void BreakOn(SegmentVtx vertex)
         {
-            if (vertex.type == SegmentVtx.PointTopology.OnVertex)
+            if (vertex.topo == SegmentVtx.PointTopology.OnVertex)
                 return;
 
             // because we're changing the mesh geometry, we will have to reassign some of the other 
@@ -434,7 +574,7 @@ namespace g3
 
 
             int new_v = -1;
-            if (vertex.type == SegmentVtx.PointTopology.OnTriangle)
+            if (vertex.topo == SegmentVtx.PointTopology.OnTriangle)
             {
                 Debug.WriteLine($"  Poke Tri {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 trisToReassign = new int[] { vertex.elem_id };
@@ -450,7 +590,7 @@ namespace g3
                 // var newT = pokeInfo.
 
             }
-            else if (vertex.type == SegmentVtx.PointTopology.OnEdge)
+            else if (vertex.topo == SegmentVtx.PointTopology.OnEdge)
             {
                 Debug.WriteLine($"  Split Edge {vertex.elem_id} @ {vertex.v.CommaDelimited}");
                 var connectedTris = Target.GetEdgeT(vertex.elem_id);
@@ -465,7 +605,7 @@ namespace g3
                 candidateNewEdges = new int[] { splitInfo.eNewBN, splitInfo.eNewCN, splitInfo.eNewDN };
             }
             // first we fix the current vertex
-            vertex.type = SegmentVtx.PointTopology.OnVertex; // we've just changed the geometry so that the vertex is certainly there
+            vertex.topo = SegmentVtx.PointTopology.OnVertex; // we've just changed the geometry so that the vertex is certainly there
             vertex.elem_id = new_v;
             Target.SetVertex(new_v, vertex.v);
             AddPointHash(new_v, vertex.v);
@@ -500,7 +640,7 @@ namespace g3
         {
             Debug.Write($"    Reassign: {sv}... ");
             // if already fixed, nothing to do
-            if (sv.type == SegmentVtx.PointTopology.OnVertex)
+            if (sv.topo == SegmentVtx.PointTopology.OnVertex)
             {
                 Debug.WriteLine("");
                 return;
@@ -509,7 +649,7 @@ namespace g3
             int existing_v = FindExistingVertex(sv.v);
             if (existing_v >= 0)
             {
-                sv.type = SegmentVtx.PointTopology.OnVertex;
+                sv.topo = SegmentVtx.PointTopology.OnVertex;
                 var tmp  = Target.GetVertex(existing_v);
                 if (tmp != sv.v)
                 {
@@ -525,7 +665,7 @@ namespace g3
             {
                 if (IsOnEdge(sv.v, candidateNewEdges[j]))
                 {
-                    sv.type = SegmentVtx.PointTopology.OnEdge;
+                    sv.topo = SegmentVtx.PointTopology.OnEdge;
                     sv.elem_id = candidateNewEdges[j];
                     AddVtxOnEdge(sv);
                     Debug.WriteLine(sv);
@@ -538,7 +678,7 @@ namespace g3
             {
                 if (IsInTriangle(sv.v, candidateNewTris[j]))
                 {
-                    sv.type = SegmentVtx.PointTopology.OnTriangle;
+                    sv.topo = SegmentVtx.PointTopology.OnTriangle;
                     sv.elem_id = candidateNewTris[j];
                     AddVtxOnFace(sv);
                     Debug.WriteLine(sv);
@@ -749,7 +889,7 @@ namespace g3
 
             public override string ToString()
             {
-                return $"{type} {elem_id}: {CoordinateDebug}";
+                return $"{topo} {elem_id}: {CoordinateDebug}";
             }
 
 
@@ -757,7 +897,7 @@ namespace g3
             public PointTopology initial_type = PointTopology.Undefined;
 
             public Vector3d v;
-            public PointTopology type = PointTopology.Undefined;
+            public PointTopology topo = PointTopology.Undefined;
             
             public int elem_id = DMesh3.InvalidID;
 
@@ -765,11 +905,11 @@ namespace g3
             public void DebugInfo(string varName)
             {
                 Debug.WriteLine($"  {varName}");
-                Debug.WriteLine($"    type: {type}");
+                Debug.WriteLine($"    type: {topo}");
                 Debug.WriteLine($"    v: {v.CommaDelimited}");
                 if (Snapped)
                     Debug.WriteLine($"    originalPosition: {originalPosition.CommaDelimited}");
-                if (initial_type != type)
+                if (initial_type != topo)
                     Debug.WriteLine($"    initial_type: {initial_type} **");
                 Debug.WriteLine($"    elm_id: {elem_id}");
             }
@@ -809,20 +949,20 @@ namespace g3
 
             public override string ToString()
             {
-                return $"{v0.type} -> {v1.type} ({v0.CoordinateDebug} => {v1.CoordinateDebug}) Len: {v0.v.Distance(v1.v)}";
+                return $"{v0.topo} -> {v1.topo} ({v0.CoordinateDebug} => {v1.CoordinateDebug}) Len: {v0.v.Distance(v1.v)}";
             }
 
             int otherVertex = -1;
 
             internal bool TryGetVertex(SegmentVtx.PointTopology required, out SegmentVtx result)
             {
-                if (v0.type == required)
+                if (v0.topo == required)
                 {
                     otherVertex = 1;
                     result = v0;
                     return true;
                 }
-                else if (v1.type == required)
+                else if (v1.topo == required)
                 {
                     otherVertex = 0;
                     result = v1;
@@ -850,7 +990,7 @@ namespace g3
                 // most homogeneus lenght of the opposite edge A 
                 // (See MeshMeshCut.svg)
                 // 
-                if (v0.type != SegmentVtx.PointTopology.OnEdge || v1.type != SegmentVtx.PointTopology.OnEdge)
+                if (v0.topo != SegmentVtx.PointTopology.OnEdge || v1.topo != SegmentVtx.PointTopology.OnEdge)
                 {
                     firstEdgeSplit = null;
                     return false;
@@ -1001,7 +1141,7 @@ namespace g3
 
         void Add_vtx(SegmentVtx vtx)
         {
-            switch (vtx.type)
+            switch (vtx.topo)
             {
                 case SegmentVtx.PointTopology.OnVertex:
                     // nothing to do
@@ -1013,7 +1153,7 @@ namespace g3
                     AddVtxOnFace(vtx);
                     break;
                 default:
-                    throw new Exception($"Unexpected flow dealing with vertex of type: {vtx.type}.");
+                    throw new Exception($"Unexpected flow dealing with vertex of type: {vtx.topo}.");
 
             }
         }

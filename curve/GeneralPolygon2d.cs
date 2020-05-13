@@ -41,9 +41,14 @@ namespace g3
 		}
 
 
-		public void AddHole(Polygon2d hole, bool bCheckContainment = true, bool bCheckOrientation = true) {
+		public void AddHole(Polygon2d hole, bool bCheckContainment = true, bool bCheckOrientation = true, double precision = 0) {
 			if ( outer == null )
 				throw new Exception("GeneralPolygon2d.AddHole: outer polygon not set!");
+			if (bCheckOrientation)
+			{
+				if (bOuterIsCW == hole.IsClockwise)
+					throw new Exception("GeneralPolygon2D.AddHole: new hole has same orientation as outer polygon!");
+			}
 			if ( bCheckContainment ) {
 				if ( outer.Contains(hole) == false )
 					throw new Exception("GeneralPolygon2d.AddHole: outer does not contain hole!");
@@ -54,10 +59,44 @@ namespace g3
 						throw new Exception("GeneralPolygon2D.AddHole: new hole intersects existing hole!");
 				}
 			}
-            if ( bCheckOrientation ) {
-                if ((bOuterIsCW && hole.IsClockwise) || (bOuterIsCW == false && hole.IsClockwise == false))
-                    throw new Exception("GeneralPolygon2D.AddHole: new hole has same orientation as outer polygon!");
-            }
+			else
+            {
+				// try to fix intersecting holes, if they do intersect then we cut the original shape
+				//
+				var d = outer.FindQualifiedIntersections(hole, precision, true);
+				if (d.Count > 0)
+				{
+					if (d.Count == 2)
+					{
+						var inter0 = d[0];
+						var inter1 = d[1];
+						var removeCount = inter1.i0 - inter0.i0;
+
+						// removing points from outer
+						var pos = inter0.i0 + 1;
+						while (removeCount-- > 0)
+                        {
+							outer.RemoveVertex(pos);
+                        }
+						// inserting A
+						outer.InsertVetex(pos++, inter0.IntersPoint);
+						var startInsertIdx = inter0.i1 + 1;
+						var insertCount = inter1.i1 - inter0.i1;
+						while (insertCount-- > 0)
+                        {
+							outer.InsertVetex(pos++, hole.Vertices[startInsertIdx++]);
+						}
+						// inserting B
+						outer.InsertVetex(pos++, inter1.IntersPoint);
+						return;
+					}
+					else
+						throw new NotImplementedException("Too many intersections."); // not investigated yet
+
+				}
+
+			}
+            
 
 			holes.Add(hole);
 		}

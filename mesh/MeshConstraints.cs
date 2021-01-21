@@ -31,11 +31,11 @@ namespace g3
                                                 // of an constrained input edge
 
 
-        public EdgeConstraint(EdgeRefineFlags rflags)
+        public EdgeConstraint(EdgeRefineFlags rflags, int setID = -1)
         {
             refineFlags = rflags;
             Target = null;
-            TrackingSetID = -1;
+            TrackingSetID = setID;
         }
 
         public EdgeConstraint(EdgeRefineFlags rflags, IProjectionTarget target)

@@ -11,14 +11,17 @@ namespace g3
 
         // for all edges, disable flip/split/collapse
         // for all vertices, pin in current position
-        public static void FixEdges(MeshConstraints cons, DMesh3 mesh, IEnumerable<int> edges)
+        public static void FixEdges(MeshConstraints cons, DMesh3 mesh, IEnumerable<int> edges, int setID = -1)
         {
+            EdgeConstraint edgeCons = new EdgeConstraint(EdgeRefineFlags.FullyConstrained, setID);
+            VertexConstraint vertCons = new VertexConstraint(true, setID);
+
             foreach ( int ei in edges ) { 
                 if (mesh.IsEdge(ei)) {
-                    cons.SetOrUpdateEdgeConstraint(ei, EdgeConstraint.FullyConstrained);
+                    cons.SetOrUpdateEdgeConstraint(ei, edgeCons);
                     Index2i ev = mesh.GetEdgeV(ei);
-                    cons.SetOrUpdateVertexConstraint(ev.a, VertexConstraint.Pinned);
-                    cons.SetOrUpdateVertexConstraint(ev.b, VertexConstraint.Pinned);
+                    cons.SetOrUpdateVertexConstraint(ev.a, vertCons);
+                    cons.SetOrUpdateVertexConstraint(ev.b, vertCons);
                 }
             }
         }
@@ -50,7 +53,7 @@ namespace g3
         // for all mesh boundary vertices, pin in current position, but allow collapses
         public static void FixAllBoundaryEdges_AllowCollapse(MeshConstraints cons, DMesh3 mesh, int setID)
         {
-            EdgeConstraint edgeCons = new EdgeConstraint(EdgeRefineFlags.NoFlip | EdgeRefineFlags.NoSplit);
+            EdgeConstraint edgeCons = new EdgeConstraint(EdgeRefineFlags.NoFlip | EdgeRefineFlags.NoSplit, setID);
             VertexConstraint vertCons = new VertexConstraint(true, setID);
 
             int NE = mesh.MaxEdgeID;
@@ -70,7 +73,7 @@ namespace g3
         // for all mesh boundary vertices, pin in current position, but allow splits
         public static void FixAllBoundaryEdges_AllowSplit(MeshConstraints cons, DMesh3 mesh, int setID)
         {
-            EdgeConstraint edgeCons = new EdgeConstraint(EdgeRefineFlags.NoFlip | EdgeRefineFlags.NoCollapse);
+            EdgeConstraint edgeCons = new EdgeConstraint(EdgeRefineFlags.NoFlip | EdgeRefineFlags.NoCollapse, setID);
             VertexConstraint vertCons = new VertexConstraint(true, setID);
 
             int NE = mesh.MaxEdgeID;

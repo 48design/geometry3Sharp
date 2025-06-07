@@ -458,7 +458,7 @@ namespace g3
         // [TODO] these could be a lot faster if DVector had a block-iterator...
         public static void Store(DVector<double> vec, BinaryWriter writer)
         {
-            byte[] buffer = new byte[vec.BlockCount * sizeof(double)];
+            byte[] buffer = new byte[vec.BlockSize * sizeof(double)];
             int N = vec.Length;
             writer.Write(N);
             foreach ( DVector<double>.DBlock block in vec.BlockIterator() ) {
@@ -477,7 +477,7 @@ namespace g3
 
         public static void Store(DVector<float> vec, BinaryWriter writer)
         {
-            byte[] buffer = new byte[vec.BlockCount * sizeof(float)];
+            byte[] buffer = new byte[vec.BlockSize * sizeof(float)];
             int N = vec.Length;
             writer.Write(N);
             foreach ( DVector<float>.DBlock block in vec.BlockIterator() ) {
@@ -496,7 +496,7 @@ namespace g3
 
         public static void Store(DVector<int> vec, BinaryWriter writer)
         {
-            byte[] buffer = new byte[vec.BlockCount * sizeof(int)];
+            byte[] buffer = new byte[vec.BlockSize * sizeof(int)];
             int N = vec.Length;
             writer.Write(N);
             foreach ( DVector<int>.DBlock block in vec.BlockIterator() ) {
@@ -515,7 +515,7 @@ namespace g3
 
         public static void Store(DVector<short> vec, BinaryWriter writer)
         {
-            byte[] buffer = new byte[vec.BlockCount * sizeof(short)];
+            byte[] buffer = new byte[vec.BlockSize * sizeof(short)];
             int N = vec.Length;
             writer.Write(N);
             foreach ( DVector<short>.DBlock block in vec.BlockIterator() ) {

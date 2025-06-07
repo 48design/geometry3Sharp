@@ -780,8 +780,21 @@ namespace g3
             Index2i et = Target.GetEdgeT(eid);
             if (get_parent(et.a) != get_parent(et.b))
                 return false;
-            // TODO need to check if we need to save edge AB to connect vertices!
-            throw new Exception("not done yet!");
+            if (et.b == DMesh3.InvalidID)
+                return false; // cannot flip boundary edge
+
+            int parent = get_parent(et.a);
+
+            // if either adjacent triangle is the original parent face, this
+            // edge existed before we began inserting vertices/segments
+            if (et.a == parent || et.b == parent)
+                return false;
+
+            Index2i ev = Target.GetEdgeV(eid);
+            if (SegmentInsertVertices.Contains(ev.a) ||
+                SegmentInsertVertices.Contains(ev.b))
+                return false;
+
             return true;
         }
 

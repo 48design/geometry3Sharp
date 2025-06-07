@@ -404,7 +404,14 @@ namespace g3
         }
         public Vector2d TangentT(double t)
         {
-            throw new NotImplementedException("Polygon2dCurve.TangentT");
+            if (Polyline.VertexCount < 2)
+                return Vector2d.Zero;
+            int i = (int)t;
+            if (i >= Polyline.VertexCount - 1)
+                i = Polyline.VertexCount - 2;
+            Vector2d a = Polyline[i];
+            Vector2d b = Polyline[i + 1];
+            return (b - a).Normalized;
         }
 
         public bool HasArcLength { get { return true; } }
@@ -414,7 +421,29 @@ namespace g3
 
         public Vector2d SampleArcLength(double a)
         {
-            throw new NotImplementedException("Polygon2dCurve.SampleArcLength");
+            if (Polyline.VertexCount == 0)
+                return Vector2d.Zero;
+
+            if (a <= 0)
+                return Polyline[0];
+
+            double length = Polyline.ArcLength;
+            if (a >= length)
+                return Polyline[Polyline.VertexCount - 1];
+
+            double accum = 0;
+            for (int i = 0; i < Polyline.VertexCount - 1; ++i) {
+                Vector2d v0 = Polyline[i];
+                Vector2d v1 = Polyline[i + 1];
+                double segLen = v0.Distance(v1);
+                if (a <= accum + segLen) {
+                    double t = (a - accum) / segLen;
+                    return (1 - t) * v0 + t * v1;
+                }
+                accum += segLen;
+            }
+
+            return Polyline[Polyline.VertexCount - 1];
         }
 
         public void Reverse()

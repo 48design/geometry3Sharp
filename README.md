@@ -406,3 +406,12 @@ This will work for **Vector2**, **Vector3**, **Quaterion**, **Ray**, **Color**, 
 Note that these conversions will **not** work for equations, so to add a Vector3f and a Vector3, you
 will need to explicitly cast one to the other.
 
+
+# Development
+
+To run the test suite, execute:
+
+```
+dotnet test tests/Geometry3Sharp.Tests/Geometry3Sharp.Tests.csproj
+```
+

@@ -66,7 +66,17 @@ namespace g3
             get { return iCurBlock * nBlockSize + iCurBlockUsed;  }
         }
 
+        /// <summary>
+        /// Number of blocks currently allocated in this vector
+        /// </summary>
         public int BlockCount {
+            get { return Blocks.Count; }
+        }
+
+        /// <summary>
+        /// Size of each block in this vector
+        /// </summary>
+        public int BlockSize {
             get { return nBlockSize; }
         }
 

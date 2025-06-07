@@ -51,19 +51,26 @@ namespace g3
                 }
 
                 if (hullDim == 1) {
-                    throw new NotImplementedException("ContMinBox2: Have not implemented 1d case");
-                    //ConvexHull1 hull1 = hull.GetConvexHull1();
-                    //hullIndices = hull1->GetIndices();
+                    Vector2d origin, dir;
+                    hull.Get1DHullInfo(out origin, out dir);
+                    double min = double.MaxValue, max = double.MinValue;
+                    for (int i = 0; i < points.Count; ++i) {
+                        double t = dir.Dot(points[i] - origin);
+                        if (t < min) min = t;
+                        if (t > max) max = t;
+                    }
 
-                    //mMinBox.Center = ((double)0.5) * (points[hullIndices[0]] +
-                    //    points[hullIndices[1]]);
-                    //Vector2d diff =
-                    //    points[hullIndices[1]] - points[hullIndices[0]];
-                    //mMinBox.Extent[0] = ((double)0.5) * diff.Normalize();
-                    //mMinBox.Extent[1] = (double)0.0;
-                    //mMinBox.Axis[0] = diff;
-                    //mMinBox.Axis[1] = -mMinBox.Axis[0].Perp();
-                    //return;
+                    Vector2d axis0 = dir;
+                    axis0.Normalize();
+                    Vector2d axis1 = -axis0.Perp;
+
+                    double extent0 = 0.5 * (max - min);
+                    mMinBox.Center = origin + 0.5 * (min + max) * axis0;
+                    mMinBox.AxisX = axis0;
+                    mMinBox.AxisY = axis1;
+                    mMinBox.Extent[0] = extent0;
+                    mMinBox.Extent[1] = 0;
+                    return;
                 }
 
                 numPoints = hullNumSimplices;

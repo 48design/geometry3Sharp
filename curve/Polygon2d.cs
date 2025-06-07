@@ -813,14 +813,40 @@ namespace g3
         }
         public Vector2d TangentT(double t)
         {
-            throw new NotImplementedException("Polygon2dCurve.TangentT");
+            int i = (int)t;
+            if (Polygon.VertexCount < 2)
+                return Vector2d.Zero;
+            if (i >= Polygon.VertexCount)
+                i = Polygon.VertexCount - 1;
+            return Polygon.GetTangent(i % Polygon.VertexCount);
         }
 
         public bool HasArcLength { get { return true; } }
         public double ArcLength { get { return Polygon.ArcLength; } }
         public Vector2d SampleArcLength(double a)
         {
-            throw new NotImplementedException("Polygon2dCurve.SampleArcLength");
+            if (Polygon.VertexCount == 0)
+                return Vector2d.Zero;
+
+            double length = Polygon.ArcLength;
+            if (length <= MathUtil.ZeroTolerance)
+                return Polygon[0];
+
+            a = MathUtil.Clamp(a, 0, length);
+
+            double accum = 0;
+            for (int i = 0; i < Polygon.VertexCount; ++i) {
+                Vector2d v0 = Polygon[i];
+                Vector2d v1 = Polygon[(i + 1) % Polygon.VertexCount];
+                double segLen = v0.Distance(v1);
+                if (a <= accum + segLen) {
+                    double t = (a - accum) / segLen;
+                    return (1 - t) * v0 + t * v1;
+                }
+                accum += segLen;
+            }
+
+            return Polygon[Polygon.VertexCount - 1];
         }
 
         public void Reverse()

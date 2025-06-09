@@ -11,7 +11,8 @@
     <PackageProjectUrl>https://github.com/gradientspace/geometry3Sharp</PackageProjectUrl>
     <PackageTags>geometry3;graphics;math;approximation;solvers;color;convexhull;meshes;spatial;curves;solids;3d;unity</PackageTags>
 	<RepositoryUrl>https://github.com/gradientspace/geometry3Sharp</RepositoryUrl>
-	<RepositoryType>git</RepositoryType>
+    <RepositoryType>git</RepositoryType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -23,10 +24,13 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Product>geometry3Sharp</Product>
     <PackageId>geometry3Sharp</PackageId>
+    <LangVersion>10.0</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Properties\AssemblyInfo.cs" />
+    <Compile Remove="geometry3Sharp.Tests\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>

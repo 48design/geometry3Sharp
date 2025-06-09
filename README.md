@@ -1,4 +1,5 @@
 # geometry3Sharp
+[![.NET](https://github.com/gradientspace/geometry3Sharp/actions/workflows/tests.yml/badge.svg)](https://github.com/gradientspace/geometry3Sharp/actions/workflows/tests.yml)
 
 Open-Source (Boost-license) C# library for geometric computing. 
 

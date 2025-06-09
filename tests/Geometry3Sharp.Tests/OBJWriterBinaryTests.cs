@@ -2,10 +2,11 @@ using System;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
-using Xunit;
+using NUnit.Framework;
 
 namespace g3.Tests
 {
+    [TestFixture]
     public class OBJWriterBinaryTests
     {
         private string WriteText(WriteMesh mesh, WriteOptions options, OBJWriter writer)
@@ -28,7 +29,7 @@ namespace g3.Tests
             }
         }
 
-        [Fact]
+        [Test]
         public void BasicWriteMatchesText()
         {
             var mesh = new DMesh3();
@@ -44,10 +45,10 @@ namespace g3.Tests
             string text = WriteText(wmesh, opts, writer);
             byte[] expected = Encoding.ASCII.GetBytes(text);
             byte[] actual = WriteBinary(wmesh, opts, writer);
-            Assert.Equal(expected, actual);
+            Assert.AreEqual(expected, actual);
         }
 
-        [Fact]
+        [Test]
         public void MaterialsAreWritten()
         {
             var mesh = new DMesh3();
@@ -76,7 +77,7 @@ namespace g3.Tests
             string text = WriteText(wmesh, opts, writer);
             byte[] expected = Encoding.ASCII.GetBytes(text);
             byte[] actual = WriteBinary(wmesh, opts, writer);
-            Assert.Equal(expected, actual);
+            Assert.AreEqual(expected, actual);
         }
     }
 }

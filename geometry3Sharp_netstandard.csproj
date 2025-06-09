@@ -30,7 +30,9 @@
 
   <ItemGroup>
     <Compile Remove="Properties\AssemblyInfo.cs" />
+
     <Compile Remove="geometry3Sharp.Tests\**\*.cs" />
+
   </ItemGroup>
 
   <ItemGroup>

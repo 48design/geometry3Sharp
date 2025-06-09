@@ -23,10 +23,13 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Product>geometry3Sharp</Product>
     <PackageId>geometry3Sharp</PackageId>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Properties\AssemblyInfo.cs" />
+    <Compile Remove="tests\**\*.cs" />
+    <Compile Remove="tempApp\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>

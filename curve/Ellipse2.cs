@@ -280,18 +280,71 @@ namespace g3
 
 
 
-        // [TODO] could use RombergIntegral like BaseCurve2, but need
-        // first-derivative function
+        // Arc-length queries are supported via numerical integration.  The
+        // implementation follows the approach used in BaseCurve2, using a
+        // Romberg integral of the speed function and a Newton/bisection solver
+        // to invert the length.
 
-		public bool HasArcLength { get {return false;} }
+                public bool HasArcLength { get {return true;} }
 
-		public double ArcLength {
-			get { throw new NotImplementedException("Ellipse2.ArcLength"); }
-		}
+                double speed_with_data(double t, object data)
+                {
+                        return ((Ellipse2d)data).speed(t);
+                }
 
-		public Vector2d SampleArcLength(double a) {
-            throw new NotImplementedException("Ellipse2.SampleArcLength");
-		}
+                double speed(double t)
+                {
+                        double theta = (IsReversed) ? -t*MathUtil.TwoPI : t*MathUtil.TwoPI;
+                        double dtheta = (IsReversed) ? -MathUtil.TwoPI : MathUtil.TwoPI;
+                        double s = Math.Sin(theta);
+                        double c = Math.Cos(theta);
+                        return Math.Abs(dtheta)*Math.Sqrt(Extent.x*Extent.x*s*s + Extent.y*Extent.y*c*c);
+                }
+
+                double partial_length(double t)
+                {
+                        return Integrate1d.RombergIntegral(8, 0, t, speed_with_data, this);
+                }
+
+                double total_length = -1;
+                public double ArcLength {
+                        get {
+                                if ( total_length < 0 )
+                                        total_length = partial_length(1);
+                                return total_length;
+                        }
+                }
+
+                double param_at_length(double length, int iterations = 32, double tolerance = 1e-6)
+                {
+                        if (length <= 0)
+                                return 0;
+                        if (length >= ArcLength)
+                                return 1;
+
+                        double ratio = length / ArcLength;
+                        double t = ratio;
+                        double lower = 0, upper = 1;
+                        for (int i = 0; i < iterations; ++i) {
+                                double diff = partial_length(t) - length;
+                                if (Math.Abs(diff) < tolerance)
+                                        return t;
+                                double tCandidate = t - diff / speed(t);
+                                if (diff > 0) {
+                                        upper = t;
+                                        t = (tCandidate <= lower) ? 0.5*(upper+lower) : tCandidate;
+                                } else {
+                                        lower = t;
+                                        t = (tCandidate >= upper) ? 0.5*(upper+lower) : tCandidate;
+                                }
+                        }
+                        return t;
+                }
+
+                public Vector2d SampleArcLength(double a) {
+                        double t = param_at_length(a);
+                        return SampleT(t);
+                }
 
 
 

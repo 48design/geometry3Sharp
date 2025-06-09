@@ -125,7 +125,17 @@ namespace g3
 
         public IOReadResult Read(BinaryReader reader, ReadOptions options, IMeshBuilder builder)
         {
-            throw new NotImplementedException();
+            // OBJ files are ASCII text. To support reading from a BinaryReader
+            // (for example when the data comes from a binary stream), wrap the
+            // underlying stream with a StreamReader and delegate to the
+            // text-based Read() implementation.  Using ASCII encoding mirrors
+            // the behaviour of OBJWriter and ensures material and vertex
+            // parsing is consistent between the two paths.
+
+            using (var sr = new StreamReader(reader.BaseStream, Encoding.ASCII, true, 1024, true))
+            {
+                return Read(sr, options, builder);
+            }
         }
 
         public IOReadResult Read(TextReader reader, ReadOptions options, IMeshBuilder builder)

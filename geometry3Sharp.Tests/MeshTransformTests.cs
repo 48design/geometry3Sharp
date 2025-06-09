@@ -1,11 +1,11 @@
 using g3;
-using Xunit;
+using NUnit.Framework;
 
 namespace geometry3Sharp.Tests;
 
 public class MeshTransformTests
 {
-    [Fact]
+    [Test]
     public void FrameFlipProducesConsistentMapping()
     {
         Frame3f f = new Frame3f(new Vector3f(1, 2, 3), Quaternionf.AxisAngleD(Vector3f.AxisY, 45));
@@ -18,10 +18,10 @@ public class MeshTransformTests
         Vector3f mirroredLocal = MeshTransforms.FlipLeftRightCoordSystems(local);
         Vector3f viaFlippedFrame = flipped.FromFrameP(mirroredLocal);
 
-        Assert.True(worldFlipped.EpsilonEqual(viaFlippedFrame, 1e-5f));
+        Assert.IsTrue(worldFlipped.EpsilonEqual(viaFlippedFrame, 1e-5f));
 
-        Assert.True(Math.Abs(flipped.Rotation.Length - 1) < 1e-6);
+        Assert.IsTrue(Math.Abs(flipped.Rotation.Length - 1) < 1e-6);
         Vector3f crossXY = flipped.X.Cross(flipped.Y);
-        Assert.True(crossXY.EpsilonEqual(flipped.Z, 1e-5f));
+        Assert.IsTrue(crossXY.EpsilonEqual(flipped.Z, 1e-5f));
     }
 }

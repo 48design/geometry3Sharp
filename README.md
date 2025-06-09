@@ -312,7 +312,7 @@ Several tutorials for using g3Sharp have been posted on the Gradientspace blog:
 
 ## 2D Curves
 
-- **Circle2d**, **Arc2d**, **Ellipse2d**, **EllipseArc2d**, **PolyLine2d**
+ - **Circle2d**, **Arc2d**, **Ellipse2d**, **EllipseArc2d**, **PolyLine2d** (ellipses now support arc-length measurement)
 - **Polygon2d**: closed polyline with signed area, point-in-polygon test, polygon/polygon intersection, polygon-in-polygon, simplification
 - **NURBSCurve2**: open nonuniform, closed and periodic uniform NURBS splines, derivatives up to 3rd order, curvature, total arc length and arc-length sampling. Uses **BSplineBasis** internally, which works in any dimension
 - All curves implement common **IParametricCurve2d** interface, as does **Segment2d**.
@@ -409,9 +409,7 @@ will need to explicitly cast one to the other.
 
 # Development
 
-To run the test suite, execute:
-
-```
-dotnet test tests/Geometry3Sharp.Tests/Geometry3Sharp.Tests.csproj
-```
+Currently this repository does not include automated tests. If you are
+working from a fork that provides a `tests` directory, you can run those
+tests with `dotnet test`.
 

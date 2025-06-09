@@ -312,7 +312,7 @@ Several tutorials for using g3Sharp have been posted on the Gradientspace blog:
 
 ## 2D Curves
 
-- **Circle2d**, **Arc2d**, **Ellipse2d**, **EllipseArc2d**, **PolyLine2d**
+ - **Circle2d**, **Arc2d**, **Ellipse2d**, **EllipseArc2d**, **PolyLine2d** (ellipses now support arc-length measurement)
 - **Polygon2d**: closed polyline with signed area, point-in-polygon test, polygon/polygon intersection, polygon-in-polygon, simplification
 - **NURBSCurve2**: open nonuniform, closed and periodic uniform NURBS splines, derivatives up to 3rd order, curvature, total arc length and arc-length sampling. Uses **BSplineBasis** internally, which works in any dimension
 - All curves implement common **IParametricCurve2d** interface, as does **Segment2d**.

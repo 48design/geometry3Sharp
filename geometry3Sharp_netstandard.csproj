@@ -24,8 +24,11 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Product>geometry3Sharp</Product>
     <PackageId>geometry3Sharp</PackageId>
-    <LangVersion>10.0</LangVersion>
+
+    <LangVersion>latest</LangVersion>
+
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
   </PropertyGroup>
 
   <ItemGroup>

@@ -135,11 +135,10 @@ namespace g3
                     mQuery = new Query2Int64(mSVertices);
 
                 } else if (queryType == QueryNumberType.QT_INTEGER) {
-                    throw new NotImplementedException("ConvexHull2: Query type QT_INTEGER not currently supported");
-                    // Scale the vertices to the square [0,2^{24}]^2 to allow use of
-                    // Integer.
-                    //expand = (double)(1 << 24);
-                    //mQuery = new Query2Integer(mNumVertices, mSVertices);
+                    // Scale the vertices to the square [0,2^{24}]^2 and use the
+                    // 64-bit integer query as an approximation for integer arithmetic.
+                    expand = (double)(1 << 24);
+                    mQuery = new Query2Int64(mSVertices);
                 } else {  // queryType == Query::QT_double
                     // No scaling for floating point.
                     expand = (double)1;
@@ -150,19 +149,12 @@ namespace g3
                     mSVertices[i] *= expand;
 
             } else {
-                throw new NotImplementedException("ConvexHull2: Query type QT_RATIONAL/QT_FILTERED not currently supported");
-
                 // No transformation needed for exact rational arithmetic or filtered
-                // predicates.
-                //for (int i = 0; i < mSVertices.Length; ++i)
-                //    mSVertices[i] = mVertices[i];
+                // predicates.  Fall back to double-precision queries.
+                for (int i = 0; i < mNumVertices; ++i)
+                    mSVertices[i] = mVertices[i];
 
-                //if (queryType == Query::QT_RATIONAL) {
-                //    mQuery = new Query2Rational(mNumVertices, mSVertices);
-                //} else { // queryType == Query::QT_FILTERED
-                //    mQuery = new Query2Filtered(mNumVertices, mSVertices,
-                //        mEpsilon);
-                //}
+                mQuery = new Query2d(mSVertices);
             }
 
 

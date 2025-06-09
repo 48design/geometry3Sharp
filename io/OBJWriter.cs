@@ -28,8 +28,16 @@ namespace g3
 
         public IOWriteResult Write(BinaryWriter writer, List<WriteMesh> vMeshes, WriteOptions options)
         {
-            // [RMS] not supported
-            throw new NotImplementedException();
+            // Write ASCII OBJ data to provided binary writer by wrapping the
+            // underlying stream with a StreamWriter. This mirrors the logic of
+            // the text writer so that material handling and indexing behave the
+            // same for binary streams.
+
+            // use ASCII encoding to match text writer behaviour
+            var sw = new StreamWriter(writer.BaseStream, Encoding.ASCII, 1024, true);
+            var result = Write(sw, vMeshes, options);
+            sw.Flush();
+            return result;
         }
 
         public IOWriteResult Write(TextWriter writer, List<WriteMesh> vMeshes, WriteOptions options)

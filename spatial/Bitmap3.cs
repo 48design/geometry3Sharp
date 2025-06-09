@@ -152,7 +152,9 @@ namespace g3
         {
             Bitmap3 copy = new Bitmap3(Dimensions);
             if (bCopy)
-                throw new NotImplementedException();
+            {
+                copy.Bits = new BitArray(this.Bits);
+            }
             return copy;
         }
 

@@ -212,13 +212,17 @@ namespace g3
         }
         public static Frame3f FlipLeftRightCoordSystems(Frame3f f)
         {
-            throw new NotImplementedException("this doesn't work...frame becomes broken somehow?");
-            //return new Frame3f(
-            //    FlipLeftRightCoordSystems(f.Origin),
-            //    f.X, f.Y, f.Z);
-            //    //FlipLeftRightCoordSystems(f.X),
-            //    //FlipLeftRightCoordSystems(f.Y),
-            //    //FlipLeftRightCoordSystems(f.Z));
+            Vector3f origin = FlipLeftRightCoordSystems(f.Origin);
+
+            Matrix3f rot = f.Rotation.ToRotationMatrix();
+            Matrix3f mirror = new Matrix3f(
+                1, 0, 0,
+                0, 1, 0,
+                0, 0, -1);
+            Matrix3f newRot = mirror * rot * mirror;
+            Quaternionf q = new Quaternionf(newRot);
+
+            return new Frame3f(origin, q);
         }
         public static void FlipLeftRightCoordSystems(IDeformableMesh mesh)
         {

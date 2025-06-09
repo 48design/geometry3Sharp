@@ -409,9 +409,7 @@ will need to explicitly cast one to the other.
 
 # Development
 
-To run the test suite, execute:
-
-```
-dotnet test tests/Geometry3Sharp.Tests/Geometry3Sharp.Tests.csproj
-```
+Currently this repository does not include automated tests. If you are
+working from a fork that provides a `tests` directory, you can run those
+tests with `dotnet test`.
 

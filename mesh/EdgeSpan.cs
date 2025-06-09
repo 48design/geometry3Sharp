@@ -181,9 +181,44 @@ namespace g3
         // Does not require the indexing to be the same
         public bool IsSameSpan(EdgeSpan Spanw, bool bReverse2 = false, double tolerance = MathUtil.ZeroTolerance)
         {
-			// [RMS] this is much easier than for a loop, because it has to have 
-			//   same endpoints. But don't have time right now.
-			throw new NotImplementedException("todo!");
+            int N = Vertices.Length;
+            if (Spanw.Vertices.Length != N || Spanw.Edges.Length != Edges.Length)
+                return false;
+
+            DMesh3 mesh2 = Spanw.Mesh;
+
+            for (int i = 0; i < N; ++i) {
+                int j = (bReverse2) ? (N - 1 - i) : i;
+                Vector3d v1 = Mesh.GetVertex(Vertices[i]);
+                Vector3d v2 = mesh2.GetVertex(Spanw.Vertices[j]);
+                if (v1.Distance(v2) > tolerance)
+                    return false;
+            }
+
+            int M = Edges.Length;
+            for (int i = 0; i < M; ++i) {
+                int j = (bReverse2) ? (M - 1 - i) : i;
+                Index2i e1 = Mesh.GetEdgeV(Edges[i]);
+                Index2i e2 = mesh2.GetEdgeV(Spanw.Edges[j]);
+
+                Vector3d e1a = Mesh.GetVertex(e1.a);
+                Vector3d e1b = Mesh.GetVertex(e1.b);
+                Vector3d e2a = mesh2.GetVertex(e2.a);
+                Vector3d e2b = mesh2.GetVertex(e2.b);
+
+                bool sameDir = (e1a.Distance(e2a) <= tolerance && e1b.Distance(e2b) <= tolerance);
+                bool oppDir  = (e1a.Distance(e2b) <= tolerance && e1b.Distance(e2a) <= tolerance);
+
+                if (bReverse2) {
+                    if (!oppDir && !sameDir)
+                        return false;
+                } else {
+                    if (!sameDir && !oppDir)
+                        return false;
+                }
+            }
+
+            return true;
         }
 
 

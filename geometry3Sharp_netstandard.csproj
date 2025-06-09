@@ -33,6 +33,7 @@
 
     <Compile Remove="geometry3Sharp.Tests\**\*.cs" />
 
+
   </ItemGroup>
 
   <ItemGroup>
